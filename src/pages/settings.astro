@@ -1,0 +1,21 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { AppLayout } from '../components/AppLayout';
+---
+
+<Layout title="Settings - Trading Journal">
+  <AppLayout activeTab="settings" client:load>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-main">Settings & Preferences</h1>
+          <p className="text-text-muted text-sm mt-1">Configure your journal and integrations</p>
+        </div>
+      </div>
+      <div className="flex-1 bg-card border border-border-card rounded-[26px] flex items-center justify-center shadow-sm">
+        <p className="text-text-muted">Settings Content Placeholder</p>
+      </div>
+    </div>
+  </AppLayout>
+</Layout>
+

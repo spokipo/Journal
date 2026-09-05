@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --bg-canvas: #f4f5f8;
+  --bg-card: #ffffff;
+  --border-color: #e2e5eb;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+}
+
+.dark {
+  --bg-canvas: #0c0e14;
+  --bg-card: #161922;
+  --border-color: #262b38;
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
+}
+
+@theme {
+  --color-canvas: var(--bg-canvas);
+  --color-card: var(--bg-card);
+  --color-border-card: var(--border-color);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base styles to prevent any blur/transparency as requested */
+* {
+  backdrop-filter: none !important;
+}
+
+/* Hide scrollbar for cleaner look if needed, but standard is fine */

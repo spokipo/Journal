@@ -1,0 +1,11 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { AppLayout } from '../components/AppLayout';
+import { Dashboard } from '../components/Dashboard';
+---
+
+<Layout title="Trading Journal">
+  <AppLayout activeTab="dashboard" client:load>
+    <Dashboard client:load />
+  </AppLayout>
+</Layout>
