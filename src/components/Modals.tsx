@@ -2,18 +2,21 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { AuthScreen } from './AuthScreen';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  hideFooter?: boolean;
 }
 
-export function BaseModal({ isOpen, onClose, title, children }: ModalProps) {
-  // Prevent body scroll when open
+export function BaseModal({ isOpen, onClose, title, children, hideFooter = false }: ModalProps) {
+  // Prevent body scroll when open on mobile
   useEffect(() => {
-    if (isOpen) {
+    const isMobile = window.innerWidth < 768;
+    if (isOpen && isMobile) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -26,74 +29,67 @@ export function BaseModal({ isOpen, onClose, title, children }: ModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-black/60 hidden md:block"
             style={{ backdropFilter: 'none' }} // Ensure no blur
           />
           
           {/* Modal Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.98, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            exit={{ opacity: 0, scale: 0.98, y: 12 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
             className={cn(
               "relative w-full h-[100dvh] flex flex-col bg-card border-border-card text-text-main",
-              "md:h-auto md:max-h-[85vh] md:w-full md:max-w-lg md:rounded-[26px] md:border overflow-hidden shadow-2xl"
+              "md:h-auto md:max-h-[85vh] md:w-full md:max-w-lg md:rounded-[26px] md:border overflow-hidden shadow-2xl rounded-none border-0"
             )}
+            style={{
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 md:py-4 border-b border-border-card shrink-0">
-              <button 
-                onClick={onClose}
-                className="text-text-muted hover:text-text-main px-2 py-1 md:hidden"
-              >
-                Cancel
-              </button>
-              <h2 className="font-semibold text-lg absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0">
+            <div className="flex items-center justify-between px-6 pt-5 pb-3 md:py-4 border-b-0 md:border-b border-border-card shrink-0">
+              <h2 className="text-xl md:text-lg font-bold md:font-semibold text-text-main tracking-tight md:tracking-normal">
                 {title}
               </h2>
               <button 
-                className="text-blue-500 font-medium px-2 py-1 md:hidden"
                 onClick={onClose}
+                className="w-10 h-10 md:w-9 md:h-9 rounded-full bg-card md:bg-transparent border border-border-card md:border-transparent flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-90 md:active:scale-95 transition-all shadow-sm md:shadow-none cursor-pointer"
               >
-                Save
-              </button>
-              {/* Desktop close button */}
-              <button 
-                onClick={onClose}
-                className="hidden md:flex p-2 rounded-full hover:bg-canvas text-text-muted hover:text-text-main transition-colors"
-              >
-                <X size={20} />
+                <X size={20} className="md:w-[18px] md:h-[18px]" />
               </button>
             </div>
             
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6">
+            <div className="flex-1 overflow-y-auto px-6 pt-2 pb-6 md:p-6 custom-scrollbar">
               {children}
             </div>
 
             {/* Desktop Footer (optional) */}
-            <div className="hidden md:flex items-center justify-end p-4 border-t border-border-card gap-3">
-              <button 
-                onClick={onClose}
-                className="px-4 py-2 rounded-full border border-border-card text-text-muted hover:text-text-main hover:bg-canvas transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={onClose}
-                className="px-4 py-2 rounded-full bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
-              >
-                Save
-              </button>
-            </div>
+            {!hideFooter && (
+              <div className="hidden md:flex items-center justify-end p-4 border-t border-border-card gap-3">
+                <button 
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-full border border-border-card text-text-muted hover:text-text-main hover:bg-canvas transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-full bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            )}
           </motion.div>
         </div>
       )}
@@ -101,62 +97,12 @@ export function BaseModal({ isOpen, onClose, title, children }: ModalProps) {
   );
 }
 
-export function IdeaModal({ isOpen, onClose }: Omit<ModalProps, 'title' | 'children'>) {
+export function AuthModal({ isOpen, onClose }: Omit<ModalProps, 'title' | 'children'>) {
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="New Idea">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-muted">Title</label>
-          <input 
-            type="text" 
-            placeholder="What's on your mind?"
-            className="w-full bg-canvas border border-border-card rounded-[18px] px-4 py-3 outline-none focus:border-blue-500 text-text-main"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-muted">Description</label>
-          <textarea 
-            rows={4}
-            placeholder="Elaborate your thoughts..."
-            className="w-full bg-canvas border border-border-card rounded-[18px] px-4 py-3 outline-none focus:border-blue-500 text-text-main resize-none"
-          />
-        </div>
-      </div>
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Account" hideFooter>
+      <AuthScreen isModal onSuccess={onClose} />
     </BaseModal>
   );
 }
 
-export function TradeModal({ isOpen, onClose }: Omit<ModalProps, 'title' | 'children'>) {
-  return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Log Trade">
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-text-muted">Symbol</label>
-            <input 
-              type="text" 
-              placeholder="e.g. AAPL"
-              className="w-full bg-canvas border border-border-card rounded-[18px] px-4 py-3 outline-none focus:border-blue-500 text-text-main"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-text-muted">Direction</label>
-            <select className="w-full bg-canvas border border-border-card rounded-[18px] px-4 py-3 outline-none focus:border-blue-500 text-text-main appearance-none">
-              <option>Long</option>
-              <option>Short</option>
-            </select>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-muted">Entry Price</label>
-          <input 
-            type="number" 
-            placeholder="0.00"
-            className="w-full bg-canvas border border-border-card rounded-[18px] px-4 py-3 outline-none focus:border-blue-500 text-text-main"
-          />
-        </div>
-      </div>
-    </BaseModal>
-  );
-}
 

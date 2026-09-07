@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
   title?: string;
@@ -17,6 +18,7 @@ const { title = "Dashboard" } = Astro.props;
     <meta id="theme-color-meta" name="theme-color" content="#f4f5f8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.json" />
+    <ClientRouter />
     
     <script is:inline>
       const getThemePreference = () => {
@@ -42,11 +44,9 @@ const { title = "Dashboard" } = Astro.props;
       const initialTheme = getThemePreference();
       applyTheme(initialTheme);
 
-      // Listen for system changes if no explicit preference is set
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('theme')) {
-          applyTheme(e.matches ? 'dark' : 'light');
-        }
+      // Re-apply theme after Astro client transitions
+      document.addEventListener('astro:after-swap', () => {
+        applyTheme(getThemePreference());
       });
     </script>
   </head>

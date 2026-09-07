@@ -1,0 +1,11 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { AppLayout } from '../components/AppLayout';
+import { PlaybookView } from '../components/playbook/PlaybookView';
+---
+
+<Layout title="Playbook - Trading Journal">
+  <AppLayout activeTab="playbook" client:load>
+    <PlaybookView client:only="react" />
+  </AppLayout>
+</Layout>

@@ -8,6 +8,17 @@
   --border-color: #e2e5eb;
   --text-main: #111827;
   --text-muted: #6b7280;
+
+  --background: #f4f5f8;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --border: #e2e5eb;
+  --muted: #f1f3f6;
+  --muted-foreground: #6b7280;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --ring: #3b82f6;
 }
 
 .dark {
@@ -16,6 +27,17 @@
   --border-color: #262b38;
   --text-main: #f9fafb;
   --text-muted: #9ca3af;
+
+  --background: #0c0e14;
+  --foreground: #f9fafb;
+  --card: #161922;
+  --card-foreground: #f9fafb;
+  --border: #262b38;
+  --muted: #1e2230;
+  --muted-foreground: #9ca3af;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --ring: #60a5fa;
 }
 
 @theme {
@@ -24,6 +46,16 @@
   --color-border-card: var(--border-color);
   --color-text-main: var(--text-main);
   --color-text-muted: var(--text-muted);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
 }
 
 html, body {
@@ -39,5 +71,42 @@ html, body {
 * {
   backdrop-filter: none !important;
 }
+
+/* Custom Thin Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+/* Firefox support */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+/* Отключение стрелок вверх/вниз у input[type=number] */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 
 /* Hide scrollbar for cleaner look if needed, but standard is fine */
