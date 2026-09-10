@@ -44,8 +44,21 @@ const getTabFromPath = (path: string) => {
   return 'dashboard';
 };
 
+// Плавная и легкая анимация для текстовых меток без тяжелого пересчета `width: auto`
+const labelVariants = {
+  expanded: { 
+    opacity: 1, 
+    x: 0,
+    transition: { duration: 0.15, delay: 0.05, ease: [0.16, 1, 0.3, 1] } 
+  },
+  collapsed: { 
+    opacity: 0, 
+    x: -6,
+    transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } 
+  }
+};
+
 export function Sidebar({ activeTab }: { activeTab?: string }) {
-  // Стартуем одинаково на сервере и клиенте во избежание Hydration mismatch
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [location, setLocation] = useLocation();
   const selectedTab = getTabFromPath(location);
@@ -143,7 +156,8 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
         <motion.aside
           initial={false}
           animate={{ width: isCollapsed ? 80 : 280 }}
-          transition={{ type: 'spring', stiffness: 350, damping: 32 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+          style={{ willChange: 'width' }}
           className="hidden md:flex flex-col bg-card border border-border-card rounded-[26px] h-[calc(100dvh-2rem)] my-4 ml-4 shrink-0 shadow-sm relative overflow-visible z-20 select-none"
         >
           {/* Collapse Toggle Button */}
@@ -155,7 +169,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
           >
             <motion.div
               animate={{ rotate: isCollapsed ? 180 : 0 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               className="flex items-center justify-center"
             >
               <ChevronLeft size={14} />
@@ -163,7 +177,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
           </button>
 
           {/* Profile Header */}
-          <div className="p-3 border-b border-border-card flex items-center h-[72px] shrink-0">
+          <div className="p-3 border-b border-border-card flex items-center h-[72px] shrink-0 overflow-hidden">
             <a 
               href={user ? "/settings?section=profile" : "#"}
               onClick={handleProfileClick}
@@ -185,28 +199,26 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                 )}
               </div>
 
-              <AnimatePresence initial={false}>
-                {!isCollapsed && (
-                  <motion.div
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="overflow-hidden whitespace-nowrap min-w-0 flex-1 ml-3"
-                  >
-                    <div className="font-semibold text-text-main text-sm truncate">
-                      {displayName}
-                    </div>
-                    <div className="text-xs text-text-muted truncate flex items-center gap-1.5 mt-0.5">
-                      <span className={cn(
-                        "w-1.5 h-1.5 rounded-full shrink-0",
-                        user ? "bg-emerald-500" : "bg-amber-500"
-                      )} />
-                      <span className="truncate">{user ? (user.email || 'Online') : 'Sign In / Guest'}</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial="collapsed"
+                  animate="expanded"
+                  exit="collapsed"
+                  variants={labelVariants}
+                  className="overflow-hidden whitespace-nowrap min-w-0 flex-1 ml-3"
+                >
+                  <div className="font-semibold text-text-main text-sm truncate">
+                    {displayName}
+                  </div>
+                  <div className="text-xs text-text-muted truncate flex items-center gap-1.5 mt-0.5">
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      user ? "bg-emerald-500" : "bg-amber-500"
+                    )} />
+                    <span className="truncate">{user ? (user.email || 'Online') : 'Sign In / Guest'}</span>
+                  </div>
+                </motion.div>
+              )}
 
               {isCollapsed && (
                 <div className="absolute left-full ml-3 px-3 py-1.5 bg-card border border-border-card text-text-main text-xs font-semibold rounded-[14px] shadow-lg opacity-0 translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 whitespace-nowrap">
@@ -217,7 +229,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
           </div>
 
           {/* Navigation Items */}
-          <div className="flex-1 overflow-hidden p-3 space-y-1 flex flex-col">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-1 flex flex-col custom-scrollbar">
             {NAV_ITEMS.map((item) => {
               const isActive = selectedTab === item.id;
               const Icon = item.icon;
@@ -236,7 +248,6 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                   {isActive && (
                     <motion.div
                       layoutId="desktop-sidebar-active-indicator"
-                      initial={false}
                       transition={{ type: 'spring', stiffness: 480, damping: 34 }}
                       className="absolute inset-0 rounded-[18px] bg-canvas border border-border-card/80 shadow-sm"
                     />
@@ -252,22 +263,20 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                     />
                   </div>
 
-                  <AnimatePresence initial={false}>
-                    {!isCollapsed && (
-                      <motion.span
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className={cn(
-                          "overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm relative z-10 truncate",
-                          isActive ? "font-semibold text-blue-500" : "font-medium text-text-muted"
-                        )}
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.span
+                      initial="collapsed"
+                      animate="expanded"
+                      exit="collapsed"
+                      variants={labelVariants}
+                      className={cn(
+                        "overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm relative z-10 truncate",
+                        isActive ? "font-semibold text-blue-500" : "font-medium text-text-muted"
+                      )}
+                    >
+                      {item.label}
+                    </motion.span>
+                  )}
 
                   {isCollapsed && (
                     <div className="absolute left-full ml-3 px-3 py-1.5 bg-card border border-border-card text-text-main text-xs font-semibold rounded-[14px] shadow-lg opacity-0 translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 whitespace-nowrap">
@@ -280,7 +289,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
           </div>
 
           {/* Controls Footer */}
-          <div className="p-3 border-t border-border-card space-y-1 shrink-0">
+          <div className="p-3 border-t border-border-card space-y-1 shrink-0 overflow-hidden">
             <div className="relative">
               <AnimatePresence>
                 {showAddMenu && (
@@ -349,19 +358,17 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                 <div className="w-9 h-9 shrink-0 flex items-center justify-center">
                   <Plus size={20} className={cn("transition-transform duration-200", showAddMenu && "rotate-45")} />
                 </div>
-                <AnimatePresence initial={false}>
-                  {!isCollapsed && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      className="overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm font-semibold truncate"
-                    >
-                      New Entry
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                {!isCollapsed && (
+                  <motion.span
+                    initial="collapsed"
+                    animate="expanded"
+                    exit="collapsed"
+                    variants={labelVariants}
+                    className="overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm font-semibold truncate"
+                  >
+                    New Entry
+                  </motion.span>
+                )}
                 {isCollapsed && (
                   <div className="absolute left-full ml-3 px-3 py-1.5 bg-card border border-border-card text-text-main text-xs font-semibold rounded-[14px] shadow-lg opacity-0 translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 whitespace-nowrap">
                     New Entry
@@ -386,19 +393,17 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                   <Moon size={20} className="shrink-0 transition-transform group-hover:-rotate-12 text-blue-500" />
                 )}
               </div>
-              <AnimatePresence initial={false}>
-                {!isCollapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    className="overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm font-medium truncate"
-                  >
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                  </motion.span>
-                )}
-              </AnimatePresence>
+              {!isCollapsed && (
+                <motion.span
+                  initial="collapsed"
+                  animate="expanded"
+                  exit="collapsed"
+                  variants={labelVariants}
+                  className="overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm font-medium truncate"
+                >
+                  {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </motion.span>
+              )}
               {isCollapsed && (
                 <div className="absolute left-full ml-3 px-3 py-1.5 bg-card border border-border-card text-text-main text-xs font-semibold rounded-[14px] shadow-lg opacity-0 translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 whitespace-nowrap">
                   {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
@@ -423,19 +428,17 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                   <LogOut size={20} className="shrink-0 transition-transform group-hover:-translate-x-0.5" />
                 )}
               </div>
-              <AnimatePresence initial={false}>
-                {!isCollapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    className="overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm font-medium truncate"
-                  >
-                    {isLoggingOut ? 'Signing out...' : user ? 'Log Out' : 'Sign In'}
-                  </motion.span>
-                )}
-              </AnimatePresence>
+              {!isCollapsed && (
+                <motion.span
+                  initial="collapsed"
+                  animate="expanded"
+                  exit="collapsed"
+                  variants={labelVariants}
+                  className="overflow-hidden whitespace-nowrap min-w-0 ml-2.5 text-sm font-medium truncate"
+                >
+                  {isLoggingOut ? 'Signing out...' : user ? 'Log Out' : 'Sign In'}
+                </motion.span>
+              )}
               {isCollapsed && (
                 <div className="absolute left-full ml-3 px-3 py-1.5 bg-card border border-border-card text-text-main text-xs font-semibold rounded-[14px] shadow-lg opacity-0 translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-50 whitespace-nowrap">
                   {user ? 'Log Out' : 'Sign In'}

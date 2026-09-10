@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   RotateCcw,
   SlidersHorizontal,
-  Check
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -49,6 +48,61 @@ const STATUS_SELECT_OPTIONS: SelectOption[] = [
   { value: 'inactive', label: 'Inactive Only' },
 ];
 
+// =========================================================================
+// SKELETON COMPONENT (§7 Loading State)
+// =========================================================================
+function PlaybookSkeleton({ viewMode }: { viewMode: ViewMode }) {
+  if (viewMode === 'grid') {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <div
+            key={idx}
+            className="bg-card border border-border-card rounded-[26px] p-4 min-h-[180px] flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-border-card/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-[14px] bg-canvas" />
+                <div className="w-24 h-4 rounded-[14px] bg-canvas" />
+              </div>
+              <div className="w-12 h-4 rounded-full bg-canvas" />
+            </div>
+            <div className="space-y-2 my-auto py-2.5">
+              <div className="w-3/4 h-3 rounded-[14px] bg-canvas" />
+              <div className="w-1/2 h-3 rounded-[14px] bg-canvas" />
+            </div>
+            <div className="pt-2 border-t border-border-card/60 flex items-center justify-between">
+              <div className="w-16 h-3 rounded-[14px] bg-canvas" />
+              <div className="w-14 h-3 rounded-[14px] bg-canvas" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col space-y-3 animate-pulse">
+      {Array.from({ length: 5 }).map((_, idx) => (
+        <div
+          key={idx}
+          className="bg-card border border-border-card rounded-[18px] h-16 px-4 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-[14px] bg-canvas" />
+            <div className="space-y-1.5">
+              <div className="w-28 h-4 rounded-[14px] bg-canvas" />
+              <div className="w-16 h-3 rounded-[14px] bg-canvas" />
+            </div>
+          </div>
+          <div className="w-20 h-4 rounded-[14px] bg-canvas" />
+          <div className="w-16 h-4 rounded-[14px] bg-canvas" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function PlaybookView() {
   const [setups, setSetups] = useState<PlaybookSetup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +115,7 @@ export function PlaybookView() {
   const [sortBy, setSortBy] = useState<SortOption>('winrate_desc');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
-  // Мобильный anchored popover для фильтров и сортировки
+  // Мобильный anchored popover
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const mobileFilterRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +123,6 @@ export function PlaybookView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSetup, setEditingSetup] = useState<PlaybookSetup | null>(null);
 
-  // Галерея скриншотов (полная совместимость с ImageViewerModal)
   const [viewerState, setViewerState] = useState<{
     isOpen: boolean;
     images: string[];
@@ -103,7 +156,6 @@ export function PlaybookView() {
       const rawSetups = (playbooksRes.data as PlaybookSetup[]) || [];
       const trades = tradesRes.data || [];
 
-      // Группируем сделки по setup_id для расчета реального винрейта и количества сделок
       const tradesBySetup = new Map<string, { total: number; wins: number }>();
       trades.forEach((t) => {
         if (t.setup_id) {
@@ -131,7 +183,6 @@ export function PlaybookView() {
 
       setSetups(computedSetups);
 
-      // Фоново актуализируем винрейт и количество сделок в таблице playbooks, если данные в базе разошлись
       computedSetups.forEach(async (s) => {
         const original = rawSetups.find((r) => r.id === s.id);
         if (original && (Number(original.winrate) !== s.winrate || Number(original.total_trades) !== s.total_trades)) {
@@ -178,7 +229,6 @@ export function PlaybookView() {
     return () => subscription.unsubscribe();
   }, [fetchSetups]);
 
-  // Закрытие мобильного поповера по клику вовне
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (mobileFilterRef.current && !mobileFilterRef.current.contains(e.target as Node)) {
@@ -240,7 +290,6 @@ export function PlaybookView() {
 
   const handleDeleteSetup = async (id: string) => {
     if (isSupabaseConfigured && user) {
-      // Отвязываем сделки от удаляемого сетапа перед удалением, чтобы не было конфликта внешних ключей
       await supabase
         .from('trades')
         .update({ setup_id: null })
@@ -267,7 +316,6 @@ export function PlaybookView() {
     setSortBy('winrate_desc');
   };
 
-  // Метрики страницы (§3 Type C — Data list)
   const stats = useMemo(() => {
     const total = setups.length;
     if (total === 0) return { total: 0, active: 0, avgWinRate: 0, totalTrades: 0 };
@@ -287,7 +335,6 @@ export function PlaybookView() {
     return { total, active, avgWinRate, totalTrades };
   }, [setups]);
 
-  // Фильтрация и сортировка
   const filteredSetups = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return setups
@@ -318,24 +365,23 @@ export function PlaybookView() {
     return 'text-text-muted';
   };
 
-  // =========================================================================
-  // РЕНДЕР КАРТОЧКИ (ИДЕНТИЧНО JOURNALVIEW)
-  // =========================================================================
-  const renderSetupItem = (setup: PlaybookSetup) => {
+  const renderSetupItem = (setup: PlaybookSetup, index: number) => {
     const hasScreenshots = Boolean(setup.screenshots && setup.screenshots.length > 0);
     const screenshots = setup.screenshots || [];
+    const staggerDelay = Math.min(index * 0.025, 0.2);
 
-    // 1. Строчный режим (List view)
     if (viewMode === 'list') {
       return (
-        <div
+        <motion.div
           key={setup.id}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
           onClick={() => handleOpenEditModal(setup)}
           className="bg-card border border-border-card transition-colors cursor-pointer rounded-[18px] hover:border-blue-500/50"
         >
-          {/* Desktop List Row (Строго h-16, четкие колонки) */}
+          {/* Desktop List Row */}
           <div className="hidden md:flex items-center justify-between gap-4 h-16 px-4 w-full">
-            {/* Колонка 1: Иконка (L0 w-9 h-9 rounded-[14px]), Название, Статус */}
             <div className="flex items-center gap-2.5 w-64 shrink-0">
               <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
                 <BookMarked size={16} />
@@ -355,14 +401,12 @@ export function PlaybookView() {
               </span>
             </div>
 
-            {/* Колонка 2: Правила стратегии (динамический центр flex-1) */}
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
               <span className="text-xs text-text-muted truncate max-w-[320px]">
                 {setup.description || 'No strategy rules configured'}
               </span>
             </div>
 
-            {/* Колонка 3: Параметры сделок (w-28) */}
             <div className="w-28 shrink-0 flex flex-col justify-center gap-0.5">
               <div className="flex items-baseline justify-between text-xs">
                 <span className="text-[0.6875rem] text-text-muted font-normal">Trades</span>
@@ -378,7 +422,6 @@ export function PlaybookView() {
               </div>
             </div>
 
-            {/* Колонка 4: Win Rate (w-24 text-right) */}
             <div className="w-24 shrink-0 flex flex-col justify-center items-end text-right">
               <div className={cn("text-sm font-bold font-mono tabular-nums leading-tight", getWinrateColor(setup.winrate))}>
                 {setup.winrate}%
@@ -388,7 +431,6 @@ export function PlaybookView() {
               </div>
             </div>
 
-            {/* Колонка 5: Миниатюра скриншота (w-10, идентично JournalView) */}
             <div className="w-10 shrink-0 flex justify-end">
               {hasScreenshots ? (
                 <button
@@ -414,7 +456,7 @@ export function PlaybookView() {
             </div>
           </div>
 
-          {/* Mobile List Row (Строгая высота 4.5rem, одинаковые слоты колонок) */}
+          {/* Mobile List Row */}
           <div className="flex md:hidden items-center justify-between gap-2.5 w-full px-3 h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
@@ -422,7 +464,6 @@ export function PlaybookView() {
               </div>
 
               <div className="min-w-0 flex-1 space-y-0.5">
-                {/* 1-я строка: Название, статус */}
                 <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
                   <span className="text-sm font-bold text-text-main shrink-0 truncate max-w-[140px]">{setup.title}</span>
                   <span
@@ -437,14 +478,12 @@ export function PlaybookView() {
                   </span>
                 </div>
 
-                {/* 2-я строка: Описание */}
                 <div className="flex items-center gap-1.5 text-[0.6875rem] text-text-muted truncate">
                   <span className="truncate">{setup.description || 'No strategy rules'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Правая колонка: Win Rate / Trades + фиксированный слот миниатюры */}
             <div className="flex items-center gap-2 shrink-0">
               <div className="text-right flex flex-col justify-center">
                 <div className={cn("text-sm font-bold font-mono tabular-nums leading-tight", getWinrateColor(setup.winrate))}>
@@ -455,7 +494,6 @@ export function PlaybookView() {
                 </div>
               </div>
 
-              {/* Одинаковый слот миниатюры (w-9 h-9 rounded-[10px]) */}
               <div className="w-9 h-9 shrink-0 flex items-center justify-center">
                 {hasScreenshots ? (
                   <button
@@ -481,14 +519,17 @@ export function PlaybookView() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       );
     }
 
-    // 2. Карточный режим (Grid view — реструктурированный тикет идентично JournalView)
+    // 2. Grid View
     return (
-      <div
+      <motion.div
         key={setup.id}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
         onClick={() => handleOpenEditModal(setup)}
         className="bg-card border border-border-card transition-colors cursor-pointer flex p-4 rounded-[26px] flex-col justify-between min-h-[180px] h-full hover:border-blue-500/50"
       >
@@ -514,7 +555,6 @@ export function PlaybookView() {
             </div>
           </div>
 
-          {/* Главный результат (Win Rate) */}
           <div className="text-right shrink-0">
             <div className="flex flex-col items-end leading-tight">
               <span className={cn("text-sm font-bold font-mono tabular-nums", getWinrateColor(setup.winrate))}>
@@ -527,7 +567,7 @@ export function PlaybookView() {
           </div>
         </div>
 
-        {/* ЯРУС 2: ТЕЛО ТИКЕТА (Правила + превью) */}
+        {/* ЯРУС 2: ТЕЛО ТИКЕТА */}
         <div className="flex items-start justify-between gap-3 my-auto py-2.5 w-full">
           <div className="flex-1 min-w-0 space-y-2">
             {setup.description ? (
@@ -541,7 +581,6 @@ export function PlaybookView() {
             )}
           </div>
 
-          {/* Миниатюра: точный размер и позиция как в JournalView (w-16 h-14 rounded-[12px]) */}
           {hasScreenshots ? (
             <div
               onClick={(e) => {
@@ -589,19 +628,19 @@ export function PlaybookView() {
             {setup.created_at ? new Date(setup.created_at).toLocaleDateString() : '—'}
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   };
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pb-16 w-full max-w-[960px] mx-auto">
-      {/* 1. Page Header (§3 Page header) */}
+      {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-main">Playbook</h1>
             <span className="px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold font-mono tabular-nums bg-blue-500/10 text-blue-500">
-              {setups.length}
+              {isLoading ? '—' : setups.length}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-text-muted mt-0.5">
@@ -621,40 +660,39 @@ export function PlaybookView() {
         </div>
       </div>
 
-      {/* 2. Metrics Block (§3 Type C — Data list) */}
+      {/* 2. Metrics Block */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Setups</span>
           <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-text-main">
-            {stats.total}
+            {isLoading ? '—' : stats.total}
           </div>
         </div>
 
         <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Active</span>
           <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-emerald-500">
-            {stats.active}
+            {isLoading ? '—' : stats.active}
           </div>
         </div>
 
         <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Avg Win Rate</span>
           <div className={cn("text-base sm:text-xl font-bold font-mono tabular-nums", getWinrateColor(stats.avgWinRate))}>
-            {stats.avgWinRate}%
+            {isLoading ? '—' : `${stats.avgWinRate}%`}
           </div>
         </div>
 
         <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Total Trades</span>
           <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-text-main">
-            {stats.totalTrades}
+            {isLoading ? '—' : stats.totalTrades}
           </div>
         </div>
       </div>
 
-      {/* 3. Toolbar (§3 Toolbar) */}
+      {/* 3. Toolbar */}
       <div className="flex flex-col gap-2 relative z-30 w-full">
-        {/* Desktop Toolbar */}
         <div className="hidden md:flex items-center justify-between gap-3 w-full">
           <div className="relative w-48 shrink-0">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
@@ -678,7 +716,6 @@ export function PlaybookView() {
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            {/* Статус */}
             <div className="w-36 shrink-0">
               <Select
                 size="sm"
@@ -689,7 +726,6 @@ export function PlaybookView() {
               />
             </div>
 
-            {/* Сортировка */}
             <div className="w-44 shrink-0">
               <Select
                 size="sm"
@@ -700,7 +736,6 @@ export function PlaybookView() {
               />
             </div>
 
-            {/* Переключатель вида */}
             <div className="flex p-1 bg-card border border-border-card rounded-[18px] h-9 items-center shrink-0">
               <button
                 type="button"
@@ -765,7 +800,6 @@ export function PlaybookView() {
             )}
           </div>
 
-          {/* Filter / Sort Button with Anchored Popover */}
           <div className="relative shrink-0" ref={mobileFilterRef}>
             <button
               type="button"
@@ -851,7 +885,6 @@ export function PlaybookView() {
             </AnimatePresence>
           </div>
 
-          {/* Mobile View Mode Switcher */}
           <div className="flex p-1 bg-card border border-border-card rounded-[18px] h-11 items-center shrink-0">
             <button
               type="button"
@@ -933,120 +966,105 @@ export function PlaybookView() {
         )}
       </div>
 
-      {/* 4. Content Area (§7 Empty / Loading / Error states) */}
-      {isLoading ? (
-        viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="bg-card border border-border-card rounded-[26px] p-4 min-h-[180px] animate-pulse flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between pb-3 border-b border-border-card/60">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-[14px] bg-canvas" />
-                    <div className="w-24 h-4 rounded-[14px] bg-canvas" />
-                  </div>
-                  <div className="w-12 h-4 rounded-full bg-canvas" />
-                </div>
-                <div className="space-y-2 my-auto py-2.5">
-                  <div className="w-3/4 h-3 rounded-[14px] bg-canvas" />
-                  <div className="w-1/2 h-3 rounded-[14px] bg-canvas" />
-                </div>
-                <div className="pt-2 border-t border-border-card/60 flex items-center justify-between">
-                  <div className="w-16 h-3 rounded-[14px] bg-canvas" />
-                  <div className="w-14 h-3 rounded-[14px] bg-canvas" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col space-y-3">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="bg-card border border-border-card rounded-[18px] h-16 px-4 flex items-center justify-between animate-pulse"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-[14px] bg-canvas" />
-                  <div className="space-y-1.5">
-                    <div className="w-28 h-4 rounded-[14px] bg-canvas" />
-                    <div className="w-16 h-3 rounded-[14px] bg-canvas" />
-                  </div>
-                </div>
-                <div className="w-20 h-4 rounded-[14px] bg-canvas" />
-                <div className="w-16 h-4 rounded-[14px] bg-canvas" />
-              </div>
-            ))}
-          </div>
-        )
-      ) : hasError ? (
-        <div className="py-12 px-6 flex flex-col items-center text-center gap-3 bg-card border border-border-card rounded-[26px]">
-          <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
-            <AlertTriangle size={24} />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-text-main">Couldn&apos;t load setups</h3>
-            <p className="text-xs font-normal text-text-muted mt-1">
-              There was a problem communicating with the database. Check your network or try again.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => { if (user) fetchSetups(user.id); }}
-            className="mt-2 h-10 px-4 rounded-[18px] bg-card border border-border-card text-text-main text-xs font-medium hover:bg-canvas transition-colors cursor-pointer flex items-center gap-2"
+      {/* 4. Content Area: Skeleton -> Error -> Empty -> Content */}
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="playbook-skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
-            <RotateCcw size={14} />
-            <span>Retry</span>
-          </button>
-        </div>
-      ) : filteredSetups.length === 0 ? (
-        <div className="py-12 px-6 flex flex-col items-center text-center gap-3 bg-card border border-border-card rounded-[26px]">
-          <div className="w-12 h-12 rounded-full bg-canvas text-text-muted flex items-center justify-center">
-            <BookMarked size={24} />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-text-main">
-              {searchQuery || statusFilter !== 'all' ? 'No setups found' : 'No setups created yet'}
-            </h3>
-            <p className="text-xs font-normal text-text-muted mt-1">
-              {searchQuery || statusFilter !== 'all'
-                ? 'Try changing your search keywords or active filters'
-                : 'Add your strategies to start tracking execution accuracy and win rates'}
-            </p>
-          </div>
-          {searchQuery || statusFilter !== 'all' ? (
+            <PlaybookSkeleton viewMode={viewMode} />
+          </motion.div>
+        ) : hasError ? (
+          <motion.div
+            key="playbook-error"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="py-12 px-6 flex flex-col items-center text-center gap-3 bg-card border border-border-card rounded-[26px]"
+          >
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-text-main">Couldn&apos;t load setups</h3>
+              <p className="text-xs font-normal text-text-muted mt-1">
+                There was a problem communicating with the database. Check your network or try again.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={resetFilters}
-              className="mt-2 text-xs text-blue-500 hover:underline flex items-center gap-1 cursor-pointer"
+              onClick={() => { if (user) fetchSetups(user.id); }}
+              className="mt-2 h-10 px-4 rounded-[18px] bg-card border border-border-card text-text-main text-xs font-medium hover:bg-canvas transition-colors cursor-pointer flex items-center gap-2 active:scale-[0.98]"
             >
-              <RotateCcw size={12} />
-              <span>Reset all filters</span>
+              <RotateCcw size={14} />
+              <span>Retry</span>
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleOpenCreateModal}
-              className="mt-2 h-11 md:h-10 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors cursor-pointer"
-            >
-              Create first setup
-            </button>
-          )}
-        </div>
-      ) : (
-        <div
-          className={cn(
-            viewMode === 'grid'
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-              : "flex flex-col space-y-3"
-          )}
-        >
-          {filteredSetups.map((s) => renderSetupItem(s))}
-        </div>
-      )}
+          </motion.div>
+        ) : filteredSetups.length === 0 ? (
+          <motion.div
+            key="playbook-empty"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="py-12 px-6 flex flex-col items-center text-center gap-3 bg-card border border-border-card rounded-[26px]"
+          >
+            <div className="w-12 h-12 rounded-full bg-canvas text-text-muted flex items-center justify-center">
+              <BookMarked size={24} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-text-main">
+                {searchQuery || statusFilter !== 'all' ? 'No setups found' : 'No setups created yet'}
+              </h3>
+              <p className="text-xs font-normal text-text-muted mt-1">
+                {searchQuery || statusFilter !== 'all'
+                  ? 'Try changing your search keywords or active filters'
+                  : 'Add your strategies to start tracking execution accuracy and win rates'}
+              </p>
+            </div>
+            {searchQuery || statusFilter !== 'all' ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mt-2 text-xs text-blue-500 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <RotateCcw size={12} />
+                <span>Reset all filters</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="mt-2 h-11 md:h-10 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors cursor-pointer active:scale-[0.98]"
+              >
+                Create first setup
+              </button>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key={`playbook-content-${viewMode}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className={cn(
+              viewMode === 'grid'
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                : "flex flex-col space-y-3"
+            )}
+          >
+            {filteredSetups.map((s, idx) => renderSetupItem(s, idx))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* 5. Overlays Layer (§1 App Shell & §5 Modal) */}
+      {/* 5. Overlays Layer */}
       <PlaybookModal
         isOpen={isModalOpen}
         editingSetup={editingSetup}
@@ -1056,7 +1074,6 @@ export function PlaybookView() {
         onDelete={handleDeleteSetup}
       />
 
-      {/* Галерея скриншотов */}
       <ImageViewerModal
         isOpen={viewerState.isOpen}
         images={viewerState.images}

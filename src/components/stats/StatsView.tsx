@@ -4,8 +4,6 @@ import {
   BarChart2, 
   RotateCcw, 
   AlertCircle, 
-  TrendingUp, 
-  Wallet,
   BookOpen,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -21,7 +19,7 @@ import {
   type FilterState,
   type StatsSummary,
 } from '../../lib/statsEngine';
-import { StatsToolbar } from './StatsToolbar';
+import { StatsToolbar, type SortOption } from './StatsToolbar';
 import { StatsMetricsGrid } from './StatsMetricsGrid';
 import { StatsEquityChart } from './StatsEquityChart';
 import { StatsBreakdowns } from './StatsBreakdowns';
@@ -35,6 +33,71 @@ const INITIAL_FILTERS: FilterState = {
   accountId: 'all',
   searchQuery: '',
 };
+
+// =========================================================================
+// SKELETON COMPONENT (§7 Loading State)
+// =========================================================================
+function StatsSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {/* Metrics Grid Skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-28 bg-card border border-border-card rounded-[26px] p-4 flex flex-col justify-between"
+          >
+            <div className="h-3.5 w-20 bg-canvas rounded-[10px]" />
+            <div className="h-6 w-24 bg-canvas rounded-[12px]" />
+          </div>
+        ))}
+      </div>
+
+      {/* Equity Chart Skeleton */}
+      <div className="h-80 bg-card border border-border-card rounded-[26px] p-6 flex flex-col justify-between">
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-32 bg-canvas rounded-[10px]" />
+          <div className="h-4 w-20 bg-canvas rounded-[10px]" />
+        </div>
+        <div className="flex-1 w-full bg-canvas/60 rounded-[18px] my-4" />
+        <div className="flex justify-between">
+          <div className="h-3 w-16 bg-canvas rounded-[8px]" />
+          <div className="h-3 w-16 bg-canvas rounded-[8px]" />
+        </div>
+      </div>
+
+      {/* Breakdowns Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-4">
+          <div className="h-4 w-36 bg-canvas rounded-[10px]" />
+          <div className="space-y-2.5">
+            {[...Array(3)].map((_, idx) => (
+              <div key={idx} className="h-10 bg-canvas/70 rounded-[14px]" />
+            ))}
+          </div>
+        </div>
+        <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-4">
+          <div className="h-4 w-36 bg-canvas rounded-[10px]" />
+          <div className="space-y-2.5">
+            {[...Array(3)].map((_, idx) => (
+              <div key={idx} className="h-10 bg-canvas/70 rounded-[14px]" />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Trades Table Skeleton */}
+      <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-3">
+        <div className="h-4 w-40 bg-canvas rounded-[10px]" />
+        <div className="space-y-2 pt-2">
+          {[...Array(4)].map((_, idx) => (
+            <div key={idx} className="h-11 bg-canvas/60 rounded-[14px]" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function StatsView() {
   const [user, setUser] = useState<any>(null);
@@ -51,11 +114,10 @@ export function StatsView() {
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
   const [metricMode, setMetricMode] = useState<'dual' | 'r' | 'amount'>('dual');
 
-  // Trade Modal State for inspecting/editing trades
+  // Trade Modal State
   const [selectedTrade, setSelectedTrade] = useState<RawTrade | null>(null);
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
 
-  // Fetch all trades, accounts, setups, and mistakes
   const fetchData = useCallback(async (userId?: string) => {
     setIsLoading(true);
     setError(null);
@@ -95,7 +157,6 @@ export function StatsView() {
         if (accRes.data) loadedAccounts = accRes.data;
       }
 
-      // Offline localStorage fallback (matches Dashboard.tsx)
       if (loadedAccounts.length === 0) {
         const cached = localStorage.getItem('trading_accounts_offline');
         if (cached) {
@@ -165,12 +226,10 @@ export function StatsView() {
     return () => subscription.unsubscribe();
   }, [fetchData]);
 
-  // 1. Enriched Trades: accurately tracking account balance chronologically
   const enrichedTrades = useMemo(() => {
     return enrichTradesWithHistoricalData(rawTrades, accounts);
   }, [rawTrades, accounts]);
 
-  // Total starting balance: for selected account or sum of all accounts if 'all'
   const startingBalance = useMemo(() => {
     if (filters.accountId && filters.accountId !== 'all') {
       const acc = accounts.find((a) => String(a.id) === String(filters.accountId));
@@ -184,17 +243,14 @@ export function StatsView() {
     }, 0);
   }, [accounts, filters.accountId]);
 
-  // 2. Filter Application
   const filteredTrades = useMemo(() => {
     return filterTrades(enrichedTrades, filters);
   }, [enrichedTrades, filters]);
 
-  // 3. Dynamic Statistics Calculation
   const stats = useMemo(() => {
     return calculateStatistics(filteredTrades, playbooks, mistakes, startingBalance);
   }, [filteredTrades, playbooks, mistakes, startingBalance]);
 
-  // 4. Sorted Trades for display in the table
   const sortedTrades = useMemo(() => {
     return sortTrades(filteredTrades, sortBy);
   }, [filteredTrades, sortBy]);
@@ -223,73 +279,9 @@ export function StatsView() {
     }
   };
 
-  // =========================================================================
-  // RENDER: Loading State (§7: Skeleton matching real geometry)
-  // =========================================================================
-  if (isLoading) {
-    return (
-      <div className="space-y-6 pb-12">
-        {/* Header Skeleton */}
-        <div>
-          <div className="h-8 w-64 bg-canvas rounded-[14px] animate-pulse mb-2" />
-          <div className="h-4 w-48 bg-canvas rounded-[10px] animate-pulse" />
-        </div>
-
-        {/* Toolbar Skeleton */}
-        <div className="h-11 w-full bg-canvas rounded-[18px] animate-pulse" />
-
-        {/* Metrics Grid Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-36 bg-canvas rounded-[26px] animate-pulse"
-            />
-          ))}
-        </div>
-
-        {/* Chart Skeleton */}
-        <div className="h-72 bg-canvas rounded-[26px] animate-pulse" />
-
-        {/* Breakdown Skeleton */}
-        <div className="h-64 bg-canvas rounded-[26px] animate-pulse" />
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // RENDER: Error State (§7)
-  // =========================================================================
-  if (error) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center p-4">
-        <div className="bg-card border border-border-card rounded-[26px] p-8 max-w-md w-full text-center space-y-4 shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
-            <AlertCircle size={24} />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-text-main">Couldn't load statistics</h2>
-            <p className="text-xs text-text-muted mt-1">{error}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => user && fetchData(user.id)}
-            className="h-10 px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-main hover:bg-canvas active:scale-[0.98] transition-all inline-flex items-center gap-2"
-          >
-            <RotateCcw size={14} />
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // RENDER: Main Content
-  // =========================================================================
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
+    <div className="space-y-6 pb-12 w-full max-w-[1280px] mx-auto">
+      {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-main">
@@ -301,7 +293,7 @@ export function StatsView() {
         </div>
       </div>
 
-      {/* Toolbar with Period, Custom Date, Account Selector, and Unit Selector */}
+      {/* 2. Toolbar */}
       <StatsToolbar
         filters={filters}
         accounts={accounts}
@@ -311,58 +303,135 @@ export function StatsView() {
         onResetFilters={handleResetFilters}
       />
 
-      {/* If user has zero trades in database */}
-      {rawTrades.length === 0 ? (
-        <div className="bg-card border border-border-card rounded-[26px] p-10 text-center space-y-4 shadow-sm my-6">
-          <div className="w-14 h-14 rounded-full bg-canvas flex items-center justify-center mx-auto text-text-muted">
-            <BarChart2 size={26} />
-          </div>
-          <div className="max-w-xs mx-auto">
-            <h3 className="text-sm font-semibold text-text-main">No trades recorded yet</h3>
-            <p className="text-xs text-text-muted mt-1">
-              Start journaling trades in the Journal section to generate performance statistics and equity curves.
-            </p>
-          </div>
-          <a
-            href="/journal"
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20"
+      {/* 3. Content Area: Skeleton -> Error -> Empty -> Content */}
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="stats-skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
-            <BookOpen size={14} />
-            Go to Journal
-          </a>
-        </div>
-      ) : (
-        <>
-          {/* KPI Metrics Grid */}
-          <StatsMetricsGrid
-            stats={stats}
-            metricMode={metricMode}
-          />
+            <StatsSkeleton />
+          </motion.div>
+        ) : error ? (
+          <motion.div
+            key="stats-error"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="min-h-[50vh] flex items-center justify-center p-4"
+          >
+            <div className="bg-card border border-border-card rounded-[26px] p-8 max-w-md w-full text-center space-y-4 shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+                <AlertCircle size={24} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-text-main">Couldn't load statistics</h2>
+                <p className="text-xs text-text-muted mt-1">{error}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => user && fetchData(user.id)}
+                className="h-10 px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-main hover:bg-canvas active:scale-[0.98] transition-all inline-flex items-center gap-2 cursor-pointer"
+              >
+                <RotateCcw size={14} />
+                Retry
+              </button>
+            </div>
+          </motion.div>
+        ) : rawTrades.length === 0 ? (
+          <motion.div
+            key="stats-empty"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-card border border-border-card rounded-[26px] p-10 text-center space-y-4 shadow-sm my-6"
+          >
+            <div className="w-14 h-14 rounded-full bg-canvas flex items-center justify-center mx-auto text-text-muted">
+              <BarChart2 size={26} />
+            </div>
+            <div className="max-w-xs mx-auto">
+              <h3 className="text-sm font-semibold text-text-main">No trades recorded yet</h3>
+              <p className="text-xs text-text-muted mt-1">
+                Start journaling trades in the Journal section to generate performance statistics and equity curves.
+              </p>
+            </div>
+            <a
+              href="/journal"
+              className="inline-flex items-center gap-2 h-10 px-5 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20"
+            >
+              <BookOpen size={14} />
+              Go to Journal
+            </a>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="stats-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-6"
+          >
+            {/* KPI Metrics Grid with Stagger */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.02, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <StatsMetricsGrid
+                stats={stats}
+                metricMode={metricMode}
+              />
+            </motion.div>
 
-          {/* Equity Curve SVG Chart (§8 compliant) */}
-          <StatsEquityChart
-            equityCurve={stats.equityCurve}
-            initialBalance={startingBalance}
-            metricMode={metricMode}
-          />
+            {/* Equity Curve SVG Chart */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <StatsEquityChart
+                equityCurve={stats.equityCurve}
+                initialBalance={startingBalance}
+                metricMode={metricMode}
+              />
+            </motion.div>
 
-          {/* Performance Breakdown by Session, Setup, Mistake, Direction, Daily */}
-          <StatsBreakdowns
-            stats={stats}
-            metricMode={metricMode}
-          />
+            {/* Performance Breakdown */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <StatsBreakdowns
+                stats={stats}
+                metricMode={metricMode}
+              />
+            </motion.div>
 
-          {/* Detailed Trades Table with sorting and TradeModal trigger */}
-          <StatsTradesTable
-            trades={sortedTrades}
-            playbooks={playbooks}
-            mistakes={mistakes}
-            sortBy={sortBy}
-            onSortChange={setSortBy}
-            onSelectTrade={handleSelectTrade}
-          />
-        </>
-      )}
+            {/* Detailed Trades Table */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <StatsTradesTable
+                trades={sortedTrades}
+                playbooks={playbooks}
+                mistakes={mistakes}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                onSelectTrade={handleSelectTrade}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Trade Modal for inspection / edits */}
       <TradeModal
@@ -376,4 +445,3 @@ export function StatsView() {
     </div>
   );
 }
-

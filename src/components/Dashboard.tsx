@@ -7,7 +7,6 @@ import {
   Activity, 
   Clock, 
   TrendingUp, 
-  TrendingDown,
   Zap, 
   Award, 
   GripHorizontal, 
@@ -17,8 +16,7 @@ import {
   Lightbulb,
   Target,
   Globe,
-  DollarSign,
-  Calendar
+  DollarSign
 } from 'lucide-react';
 import { WIDGET_REGISTRY, type WidgetSize, type WidgetProps } from './widgets';
 import { cn } from '../lib/utils';
@@ -31,7 +29,6 @@ import {
   calculateStatistics, 
   type TradingAccount, 
   type RawTrade, 
-  type EnrichedTrade, 
   type StatsSummary 
 } from '../lib/statsEngine';
 
@@ -71,17 +68,32 @@ const INITIAL_LAYOUT: WidgetInstance[] = [
   { id: 'w9', type: 'equitySparkline', size: 'large' },
 ];
 
+function DashboardSkeleton() {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 pb-32 md:pb-8 animate-pulse">
+      <div className="col-span-2 aspect-[2/1] md:aspect-[2.05/1] rounded-[26px] bg-card border border-border-card p-5" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
+      <div className="col-span-2 row-span-2 aspect-square rounded-[26px] bg-card border border-border-card p-5" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
+    </div>
+  );
+}
 
-
-// Sortable Item Component conforming strictly to design.md §3 Layout Types (Grid)
+// Sortable Item Component с поддержкой каскадного входа
 function SortableWidget({ 
   widget, 
+  index,
   isEditMode, 
   widgetData,
   onRemove, 
   onChangeSize 
 }: { 
   widget: WidgetInstance; 
+  index: number;
   isEditMode: boolean;
   widgetData: Omit<WidgetProps, 'size'>;
   onRemove: (id: string) => void;
@@ -111,10 +123,15 @@ function SortableWidget({
   if (!RegistryEntry) return null;
   const WidgetComponent = RegistryEntry.component;
 
+  const staggerDelay = Math.min(index * 0.025, 0.2);
+
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
         "relative w-full h-full rounded-[26px] transition-shadow",
         widget.size === 'small' && "col-span-1 row-span-1 aspect-square",
@@ -135,12 +152,10 @@ function SortableWidget({
         </div>
       </div>
 
-      {/* Edit Controls Overlay conforming to design.md §3 */}
+      {/* Edit Controls Overlay */}
       {isEditMode && (
         <div className="absolute inset-0 flex flex-col items-center justify-between p-3 z-20 pointer-events-none">
-          {/* Top Row: Delete & Drag Handle */}
           <div className="w-full flex justify-between items-start pointer-events-auto">
-            {/* Drag Handle bound to dnd-kit listeners */}
             <div 
               {...attributes}
               {...listeners}
@@ -149,7 +164,6 @@ function SortableWidget({
             >
               <GripHorizontal size={16} />
             </div>
-            {/* Delete button: w-6 h-6 bg-rose-500 text-white rounded-full per §3 Edit mode */}
             <button 
               type="button"
               onClick={() => onRemove(widget.id)}
@@ -160,7 +174,6 @@ function SortableWidget({
             </button>
           </div>
 
-          {/* Bottom Row: Size Switcher (L4 / nested control h-7 per §2 & §3) */}
           <div className="h-7 bg-card/95 backdrop-blur-md rounded-full shadow-md border border-border-card flex items-center p-0.5 gap-0.5 pointer-events-auto mt-auto mb-1">
             {(['small', 'medium', 'large'] as WidgetSize[]).map((size) => {
               const isSupported = RegistryEntry.supportedSizes.includes(size);
@@ -189,7 +202,7 @@ function SortableWidget({
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -208,11 +221,10 @@ export function Dashboard() {
   const [dailyRiskLimit, setDailyRiskLimit] = useState<number>(2.0);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Trade modal state for quick execution from ideas
+  // Trade modal state
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
   const [selectedIdeaForTrade, setSelectedIdeaForTrade] = useState<any | null>(null);
 
-  // Sensors for dnd-kit
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -224,7 +236,6 @@ export function Dashboard() {
     })
   );
 
-  // Load layout and saved account from localStorage
   useEffect(() => {
     setIsMounted(true);
     const savedLayout = localStorage.getItem('widgetLayout_v4');
@@ -232,7 +243,6 @@ export function Dashboard() {
       try {
         const parsed = JSON.parse(savedLayout);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Verify each widget type exists in registry and size is supported
           const valid = parsed
             .filter(w => Boolean(WIDGET_REGISTRY[w.type as keyof typeof WIDGET_REGISTRY]))
             .map(w => {
@@ -255,7 +265,6 @@ export function Dashboard() {
     }
   }, []);
 
-  // Sync daily risk limit per account from localStorage
   useEffect(() => {
     const key = `dashboard_daily_risk_limit_${selectedAccountId}`;
     const savedLimit = localStorage.getItem(key);
@@ -279,14 +288,12 @@ export function Dashboard() {
     setIsTradeModalOpen(true);
   };
 
-  // Persist layout changes
   useEffect(() => {
     if (isMounted) {
       localStorage.setItem('widgetLayout_v4', JSON.stringify(layout));
     }
   }, [layout, isMounted]);
 
-  // Fetch Accounts, Trades, and Ideas
   const fetchData = useCallback(async (userId?: string) => {
     setIsLoadingData(true);
     try {
@@ -320,7 +327,6 @@ export function Dashboard() {
         if (idRes.data) loadedIdeas = idRes.data;
       }
 
-      // Check offline localStorage fallback if no accounts found in Supabase (or offline mode)
       if (loadedAccounts.length === 0) {
         const cached = localStorage.getItem('trading_accounts_offline');
         if (cached) {
@@ -354,7 +360,6 @@ export function Dashboard() {
       setIdeas(loadedIdeas);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      // Fallback to offline storage on error, NEVER to fake mock accounts
       const cached = localStorage.getItem('trading_accounts_offline');
       let fallbackAccs: TradingAccount[] = [];
       if (cached) {
@@ -388,13 +393,11 @@ export function Dashboard() {
     return () => subscription.unsubscribe();
   }, [fetchData]);
 
-  // Handle account change
   const handleAccountChange = (newAccId: string) => {
     setSelectedAccountId(newAccId);
     localStorage.setItem('dashboard_selected_account_id', newAccId);
   };
 
-  // Ensure selectedAccountId is reset to 'all' if selected account was deleted/missing
   useEffect(() => {
     if (selectedAccountId !== 'all' && accounts.length > 0) {
       const exists = accounts.some(a => a.id === selectedAccountId);
@@ -404,24 +407,20 @@ export function Dashboard() {
     }
   }, [accounts, selectedAccountId]);
 
-  // Find active account object (or null for 'all')
   const activeAccount = useMemo(() => {
     if (selectedAccountId === 'all') return null;
     return accounts.find(a => a.id === selectedAccountId) || null;
   }, [accounts, selectedAccountId]);
 
-  // Enrich trades with historical balance calculation
   const enrichedTrades = useMemo(() => {
     return enrichTradesWithHistoricalData(trades, accounts);
   }, [trades, accounts]);
 
-  // Filter trades for the selected account
   const filteredTrades = useMemo(() => {
     if (selectedAccountId === 'all') return enrichedTrades;
     return enrichedTrades.filter(t => t.account_id && String(t.account_id) === String(selectedAccountId));
   }, [enrichedTrades, selectedAccountId]);
 
-  // Trades executed today (using user device's local date)
   const todayTrades = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -436,7 +435,6 @@ export function Dashboard() {
     });
   }, [filteredTrades]);
 
-  // Starting balance across selected account or all accounts
   const totalStartingBalance = useMemo(() => {
     if (activeAccount) {
       return Number(activeAccount.initial_balance ?? activeAccount.balance ?? 0);
@@ -447,7 +445,6 @@ export function Dashboard() {
     }, 0);
   }, [accounts, activeAccount]);
 
-  // Compute stats for current account slice (or all accounts)
   const computedStats = useMemo<StatsSummary | null>(() => {
     try {
       return calculateStatistics(filteredTrades, {}, {}, totalStartingBalance);
@@ -457,7 +454,6 @@ export function Dashboard() {
     }
   }, [filteredTrades, totalStartingBalance]);
 
-  // Account options for Select component
   const accountOptions: SelectOption[] = useMemo(() => {
     if (accounts.length === 0) {
       return [
@@ -489,7 +485,6 @@ export function Dashboard() {
     return list;
   }, [accounts]);
 
-  // Widget management
   const removeWidget = (id: string) => {
     setLayout(prev => prev.filter(w => w.id !== id));
   };
@@ -524,7 +519,6 @@ export function Dashboard() {
     }
   };
 
-  // Icon mapping for catalog
   const iconMap: Record<string, React.ReactNode> = {
     equitySparkline: <TrendingUp size={24} className="text-emerald-500" />,
     pnlCombined: <DollarSign size={24} className="text-emerald-500" />,
@@ -538,7 +532,6 @@ export function Dashboard() {
     profitFactor: <Award size={24} className="text-blue-500" />,
   };
 
-  // Data bundle passed down to each widget
   const sharedWidgetData = {
     account: activeAccount,
     accounts,
@@ -556,7 +549,7 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col h-full relative">
-      {/* Page Header conforming strictly to design.md §3 Page Header & Toolbar rules */}
+      {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative z-30">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-main">
@@ -567,9 +560,7 @@ export function Dashboard() {
           </p>
         </div>
 
-        {/* Flat row of L1 toolbar controls on bg-canvas (§3 Toolbar: no L2 wrapper) */}
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {/* Account Selector (L1 Element, rounded-[18px]) */}
           <div className="w-48 sm:w-56">
             <Select
               value={selectedAccountId}
@@ -581,7 +572,6 @@ export function Dashboard() {
             />
           </div>
 
-          {/* Quick link to create account if none found */}
           {accounts.length === 0 && !isLoadingData && (
             <a
               href="/settings"
@@ -593,7 +583,6 @@ export function Dashboard() {
             </a>
           )}
 
-          {/* Edit Mode Toggle Button (§3 Edit mode & §4 Button: ghost icon-button, toggled bg-blue-500 text-white) */}
           <button 
             type="button"
             onClick={() => setIsEditMode(!isEditMode)}
@@ -612,100 +601,116 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Grid State Handling */}
-      {!isMounted || isLoadingData ? (
-        // Loading skeleton strictly following §7 Loading State
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 pb-32 md:pb-8">
-          <div className="col-span-2 aspect-[2/1] rounded-[26px] bg-card border border-border-card animate-pulse p-5" />
-          <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card animate-pulse p-4" />
-          <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card animate-pulse p-4" />
-          <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card animate-pulse p-4" />
-          <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card animate-pulse p-4" />
-          <div className="col-span-2 row-span-2 aspect-square rounded-[26px] bg-card border border-border-card animate-pulse p-5" />
-        </div>
-      ) : layout.length === 0 ? (
-        // Empty State conforming strictly to §7 Empty State
-        <div className="w-full flex flex-col items-center justify-center py-16 px-4">
-          <div className="bg-card border border-border-card rounded-[26px] p-8 max-w-sm w-full text-center flex flex-col items-center shadow-sm">
-            <div className="h-14 w-14 rounded-full bg-canvas flex items-center justify-center text-text-muted mb-4">
-              <Layers size={26} />
-            </div>
-            <h3 className="text-base font-semibold text-text-main">
-              No Active Widgets
-            </h3>
-            <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
-              Your dashboard grid is currently empty. Add widgets from the catalog or restore standard defaults.
-            </p>
-            <div className="flex items-center gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => setIsAddMenuOpen(true)}
-                className="h-10 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-all active:scale-[0.98] shadow-sm shadow-blue-500/20 cursor-pointer"
-              >
-                Add Widget
-              </button>
-              <button
-                type="button"
-                onClick={restoreDefaultLayout}
-                className="h-10 px-4 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <RotateCcw size={14} />
-                Defaults
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // 2D Grid with dnd-kit (Layout Type A - Grid per §3)
-        <DndContext 
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 pb-32 md:pb-8 items-start relative z-10">
-            <SortableContext 
-              items={layout.map(w => w.id)} 
-              strategy={rectSortingStrategy}
-            >
-              {layout.map((widget) => (
-                <SortableWidget 
-                  key={widget.id}
-                  widget={widget}
-                  isEditMode={isEditMode}
-                  widgetData={sharedWidgetData}
-                  onRemove={removeWidget}
-                  onChangeSize={changeSize}
-                />
-              ))}
-            </SortableContext>
-
-            {/* Add Widget Placeholder Slot (§3 Edit mode: dashed border-2 border-dashed border-border-card rounded-[26px]) */}
-            <AnimatePresence>
-              {isEditMode && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      {/* 2. Content Area — AnimatePresence с переходом скелетон -> каскадный грид */}
+      <AnimatePresence mode="wait">
+        {!isMounted || isLoadingData ? (
+          <motion.div
+            key="dashboard-skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <DashboardSkeleton />
+          </motion.div>
+        ) : layout.length === 0 ? (
+          <motion.div
+            key="dashboard-empty"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="w-full flex flex-col items-center justify-center py-16 px-4"
+          >
+            <div className="bg-card border border-border-card rounded-[26px] p-8 max-w-sm w-full text-center flex flex-col items-center shadow-sm">
+              <div className="h-14 w-14 rounded-full bg-canvas flex items-center justify-center text-text-muted mb-4">
+                <Layers size={26} />
+              </div>
+              <h3 className="text-base font-semibold text-text-main">
+                No Active Widgets
+              </h3>
+              <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                Your dashboard grid is currently empty. Add widgets from the catalog or restore standard defaults.
+              </p>
+              <div className="flex items-center gap-3 mt-6">
+                <button
+                  type="button"
                   onClick={() => setIsAddMenuOpen(true)}
-                  className="col-span-1 row-span-1 aspect-square w-full h-full relative cursor-pointer group"
+                  className="h-10 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-all active:scale-[0.98] shadow-sm shadow-blue-500/20 cursor-pointer"
                 >
-                  <div className="absolute inset-0 rounded-[26px] border-2 border-dashed border-border-card bg-canvas/40 group-hover:bg-canvas group-hover:border-blue-500/50 transition-all flex flex-col items-center justify-center text-text-muted group-hover:text-blue-500 group-active:scale-95 p-3 text-center">
-                    <div className="p-2 rounded-full bg-card border border-border-card group-hover:border-blue-500/40 transition-colors mb-2">
-                      <Plus size={22} />
-                    </div>
-                    <span className="font-semibold text-xs text-text-main group-hover:text-blue-500">
-                      Add Widget
-                    </span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </DndContext>
-      )}
+                  Add Widget
+                </button>
+                <button
+                  type="button"
+                  onClick={restoreDefaultLayout}
+                  className="h-10 px-4 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+                >
+                  <RotateCcw size={14} />
+                  Defaults
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="dashboard-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 pb-32 md:pb-8 items-start relative z-10">
+                <SortableContext 
+                  items={layout.map(w => w.id)} 
+                  strategy={rectSortingStrategy}
+                >
+                  {layout.map((widget, idx) => (
+                    <SortableWidget 
+                      key={widget.id}
+                      index={idx}
+                      widget={widget}
+                      isEditMode={isEditMode}
+                      widgetData={sharedWidgetData}
+                      onRemove={removeWidget}
+                      onChangeSize={changeSize}
+                    />
+                  ))}
+                </SortableContext>
 
-      {/* Add Widget Modal Catalog (Modal §5: short form md:w-[480px]) */}
+                {/* Слот добавления виджета в режиме редактирования */}
+                <AnimatePresence>
+                  {isEditMode && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                      onClick={() => setIsAddMenuOpen(true)}
+                      className="col-span-1 row-span-1 aspect-square w-full h-full relative cursor-pointer group"
+                    >
+                      <div className="absolute inset-0 rounded-[26px] border-2 border-dashed border-border-card bg-canvas/40 group-hover:bg-canvas group-hover:border-blue-500/50 transition-all flex flex-col items-center justify-center text-text-muted group-hover:text-blue-500 group-active:scale-95 p-3 text-center">
+                        <div className="p-2 rounded-full bg-card border border-border-card group-hover:border-blue-500/40 transition-colors mb-2">
+                          <Plus size={22} />
+                        </div>
+                        <span className="font-semibold text-xs text-text-main group-hover:text-blue-500">
+                          Add Widget
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </DndContext>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Каталог виджетов */}
       <BaseModal 
         isOpen={isAddMenuOpen} 
         onClose={() => setIsAddMenuOpen(false)} 
@@ -752,7 +757,7 @@ export function Dashboard() {
         </div>
       </BaseModal>
 
-      {/* Trade Modal for quick trade creation from ideas */}
+      {/* Trade Modal */}
       <TradeModal
         isOpen={isTradeModalOpen}
         onClose={() => {
@@ -771,4 +776,3 @@ export function Dashboard() {
     </div>
   );
 }
-
