@@ -9,15 +9,19 @@ export function PnlCombinedWidget({
   size, 
   stats, 
   account, 
+  accounts = [],
   currencySymbol = '$' 
 }: WidgetProps) {
-  const currentBalance = account 
-    ? (account.current_balance ?? account.balance ?? 10000)
-    : (stats?.equityCurve?.length 
-        ? stats.equityCurve[stats.equityCurve.length - 1].totalBalance 
-        : 10000);
-  const initialBalance = account ? (account.initial_balance ?? 10000) : 10000;
-  const netAmount = stats ? stats.netAmount : (currentBalance - initialBalance);
+  const totalAccountsBalance = accounts.reduce(
+    (sum, a) => sum + Number(a.initial_balance ?? a.balance ?? 0),
+    0
+  );
+
+  const initialBalance = account 
+    ? Number(account.initial_balance ?? account.balance ?? 0)
+    : totalAccountsBalance;
+
+  const netAmount = stats?.netAmount ?? 0;
   const netPercent = initialBalance > 0 ? (netAmount / initialBalance) * 100 : 0;
   const isPositive = netAmount >= 0;
 
@@ -47,7 +51,7 @@ export function PnlCombinedWidget({
             {formatCurrency(netAmount, currencySymbol)}
           </div>
           <div className="text-[0.6875rem] text-text-muted uppercase tracking-wider font-semibold mt-0.5">
-            Net PnL ($ & %)
+            Net PnL ({currencySymbol} & %)
           </div>
         </div>
 

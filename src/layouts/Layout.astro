@@ -1,12 +1,15 @@
 ---
 import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
+import { Sidebar } from '../components/Sidebar';
+import { MobileTabBar } from '../components/MobileTabBar';
 
 interface Props {
   title?: string;
+  activeTab?: string;
 }
 
-const { title = "Dashboard" } = Astro.props;
+const { title = "Dashboard", activeTab = "dashboard" } = Astro.props;
 ---
 
 <!doctype html>
@@ -41,17 +44,51 @@ const { title = "Dashboard" } = Astro.props;
         }
       };
 
-      const initialTheme = getThemePreference();
-      applyTheme(initialTheme);
+      applyTheme(getThemePreference());
 
-      // Re-apply theme and ensure scroll unlocks after Astro client transitions
+      // Сброс скролла и восстановление темы после перехода Astro
       document.addEventListener('astro:after-swap', () => {
         applyTheme(getThemePreference());
         document.body.style.overflow = '';
+        
+        const scrollContainer = document.getElementById('main-scroll-container');
+        if (scrollContainer) {
+          scrollContainer.scrollTop = 0;
+        }
       });
     </script>
   </head>
-  <body>
-    <slot />
+  <body class="bg-canvas text-text-main antialiased selection:bg-blue-500/20">
+    <div class="min-h-dvh h-dvh bg-canvas text-text-main flex flex-col md:flex-row overflow-hidden">
+      {/* Сайдбар сохраняется между страницами */}
+      <Sidebar 
+        client:load 
+        transition:persist="desktop-sidebar" 
+        transition:name="desktop-sidebar"
+        activeTab={activeTab} 
+      />
+
+      {/* Скролл-контейнер для страниц */}
+      <main 
+        id="main-scroll-container"
+        class="flex-1 h-full overflow-y-auto overflow-x-hidden p-4 pb-28 md:p-6 md:pb-6 lg:p-8 lg:pb-8"
+      >
+        {/* Анимируется только содержимое этого контейнера */}
+        <div 
+          transition:name="page-content"
+          class="max-w-6xl mx-auto min-h-full"
+        >
+          <slot />
+        </div>
+      </main>
+
+      {/* Таб-бар сохраняется между страницами */}
+      <MobileTabBar 
+        client:load 
+        transition:persist="mobile-tabbar" 
+        transition:name="mobile-tabbar"
+        activeTab={activeTab} 
+      />
+    </div>
   </body>
 </html>

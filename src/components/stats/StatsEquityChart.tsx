@@ -12,20 +12,22 @@ interface StatsEquityChartProps {
 
 export function StatsEquityChart({
   equityCurve,
-  initialBalance = 10000,
+  initialBalance = 0,
   metricMode,
 }: StatsEquityChartProps) {
+  const hasMonetaryData = initialBalance > 0 || equityCurve.some(p => p.cumulativeAmount !== null && p.cumulativeAmount !== undefined);
+
   const [chartUnit, setChartUnit] = useState<'r' | 'amount'>(() =>
-    metricMode === 'amount' ? 'amount' : 'r'
+    metricMode === 'amount' && hasMonetaryData ? 'amount' : 'r'
   );
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync unit with toolbar metricMode if user changes it
   React.useEffect(() => {
-    if (metricMode === 'amount') setChartUnit('amount');
-    else if (metricMode === 'r') setChartUnit('r');
-  }, [metricMode]);
+    if (metricMode === 'amount' && hasMonetaryData) setChartUnit('amount');
+    else setChartUnit('r');
+  }, [metricMode, hasMonetaryData]);
 
   // Transform data points
   const points = useMemo(() => {
@@ -40,17 +42,17 @@ export function StatsEquityChart({
       direction: 'LONG',
       outcome: 'BE',
       pnlR: 0,
-      pnlAmount: 0,
+      pnlAmount: hasMonetaryData ? 0 : null,
       cumulativeR: 0,
-      cumulativeAmount: 0,
-      totalBalance: initialBalance,
+      cumulativeAmount: hasMonetaryData ? 0 : null,
+      totalBalance: hasMonetaryData ? initialBalance : null,
       accountName: equityCurve[0].accountName,
     };
 
     return [origin, ...equityCurve];
-  }, [equityCurve, initialBalance]);
+  }, [equityCurve, initialBalance, hasMonetaryData]);
 
-  const isUsingR = chartUnit === 'r';
+  const isUsingR = chartUnit === 'r' || !hasMonetaryData;
 
   // Compute SVG dimensions and paths
   const chartMetrics = useMemo(() => {
@@ -180,10 +182,18 @@ export function StatsEquityChart({
           </button>
           <button
             type="button"
-            onClick={() => setChartUnit('amount')}
+            disabled={!hasMonetaryData}
+            onClick={() => {
+              if (hasMonetaryData) setChartUnit('amount');
+            }}
+            title={!hasMonetaryData ? 'No monetary data available for current selection' : undefined}
             className={cn(
-              "px-3 py-1 text-xs font-semibold rounded-[10px] transition-colors cursor-pointer",
-              chartUnit === 'amount' ? "bg-card text-blue-500 shadow-sm" : "text-text-muted hover:text-text-main"
+              "px-3 py-1 text-xs font-semibold rounded-[10px] transition-colors",
+              !hasMonetaryData
+                ? "text-text-muted/40 cursor-not-allowed"
+                : chartUnit === 'amount'
+                ? "bg-card text-blue-500 shadow-sm cursor-pointer"
+                : "text-text-muted hover:text-text-main cursor-pointer"
             )}
           >
             Monetary ($)
@@ -328,7 +338,7 @@ export function StatsEquityChart({
                           activeHover.pnlR > 0 ? "text-emerald-500" : activeHover.pnlR < 0 ? "text-rose-500" : "text-text-muted"
                         )}
                       >
-                        {activeHover.pnlR > 0 ? '+' : ''}{activeHover.pnlR}R ({activeHover.pnlAmount > 0 ? '+' : ''}${activeHover.pnlAmount.toFixed(2)})
+                        {activeHover.pnlR > 0 ? '+' : ''}{activeHover.pnlR}R{activeHover.pnlAmount !== null && activeHover.pnlAmount !== undefined ? ` (${activeHover.pnlAmount > 0 ? '+' : ''}$${activeHover.pnlAmount.toFixed(2)})` : ''}
                       </span>
                     </div>
                   )}
@@ -336,12 +346,12 @@ export function StatsEquityChart({
                   <div className="flex items-center justify-between text-[0.6875rem] font-mono pt-1 border-t border-border-card">
                     <span className="text-text-muted">Cumulative:</span>
                     <span className="font-bold text-text-main">
-                      {isUsingR
+                      {isUsingR || activeHover.cumulativeAmount === null || activeHover.cumulativeAmount === undefined
                         ? `${activeHover.cumulativeR >= 0 ? '+' : ''}${activeHover.cumulativeR.toFixed(2)} R`
                         : `${activeHover.cumulativeAmount >= 0 ? '+' : ''}$${activeHover.cumulativeAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </span>
                   </div>
-                  {!isUsingR && activeHover.totalBalance !== undefined && (
+                  {!isUsingR && activeHover.totalBalance !== null && activeHover.totalBalance !== undefined && (
                     <div className="flex items-center justify-between text-[0.6875rem] font-mono">
                       <span className="text-text-muted">Balance:</span>
                       <span className="font-medium text-text-main">

@@ -56,56 +56,91 @@ export function StatsView() {
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
 
   // Fetch all trades, accounts, setups, and mistakes
-  const fetchData = useCallback(async (userId: string) => {
-    if (!isSupabaseConfigured) {
-      setIsLoading(false);
-      return;
-    }
-
+  const fetchData = useCallback(async (userId?: string) => {
     setIsLoading(true);
     setError(null);
 
+    let loadedAccounts: TradingAccount[] = [];
+    let loadedTrades: RawTrade[] = [];
+    const pbMap: Record<string, string> = {};
+    const mistMap: Record<string, string> = {};
+
     try {
-      const [pbRes, mistRes, trRes, accRes] = await Promise.all([
-        supabase
-          .from('playbooks')
-          .select('id, title')
-          .eq('user_id', userId),
-        supabase
-          .from('user_mistakes')
-          .select('id, name')
-          .eq('user_id', userId),
-        supabase
-          .from('trades')
-          .select('*')
-          .eq('user_id', userId)
-          .order('trade_date', { ascending: true }),
-        supabase
-          .from('trading_accounts')
-          .select('*')
-          .eq('user_id', userId)
-          .or('is_archived.is.null,is_archived.eq.false')
-          .order('is_default', { ascending: false }),
-      ]);
+      if (userId && isSupabaseConfigured) {
+        const [pbRes, mistRes, trRes, accRes] = await Promise.all([
+          supabase
+            .from('playbooks')
+            .select('id, title')
+            .eq('user_id', userId),
+          supabase
+            .from('user_mistakes')
+            .select('id, name')
+            .eq('user_id', userId),
+          supabase
+            .from('trades')
+            .select('*')
+            .eq('user_id', userId)
+            .order('trade_date', { ascending: true }),
+          supabase
+            .from('trading_accounts')
+            .select('*')
+            .eq('user_id', userId)
+            .or('is_archived.is.null,is_archived.eq.false')
+            .order('is_default', { ascending: false }),
+        ]);
 
-      if (trRes.error) throw trRes.error;
-      if (accRes.error) throw accRes.error;
+        if (pbRes.data) pbRes.data.forEach((p) => { pbMap[p.id] = p.title; });
+        if (mistRes.data) mistRes.data.forEach((m) => { mistMap[m.id] = m.name; });
+        if (trRes.data) loadedTrades = trRes.data;
+        if (accRes.data) loadedAccounts = accRes.data;
+      }
 
-      // Build playbooks dictionary
-      const pbMap: Record<string, string> = {};
-      pbRes.data?.forEach((p) => { pbMap[p.id] = p.title; });
+      // Offline localStorage fallback (matches Dashboard.tsx)
+      if (loadedAccounts.length === 0) {
+        const cached = localStorage.getItem('trading_accounts_offline');
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) loadedAccounts = parsed.filter((a: any) => !a.is_archived);
+          } catch (e) {}
+        }
+      }
+
+      if (loadedTrades.length === 0) {
+        const cachedTrades = localStorage.getItem('trades_offline');
+        if (cachedTrades) {
+          try {
+            const parsed = JSON.parse(cachedTrades);
+            if (Array.isArray(parsed)) loadedTrades = parsed;
+          } catch (e) {}
+        }
+      }
+
       setPlaybooks(pbMap);
-
-      // Build mistakes dictionary
-      const mistMap: Record<string, string> = {};
-      mistRes.data?.forEach((m) => { mistMap[m.id] = m.name; });
       setMistakes(mistMap);
-
-      setRawTrades(trRes.data || []);
-      setAccounts(accRes.data || []);
+      setRawTrades(loadedTrades);
+      setAccounts(loadedAccounts);
     } catch (err: any) {
       console.error('Error loading stats data:', err);
-      setError(err?.message || 'Failed to load statistics data');
+      const cached = localStorage.getItem('trading_accounts_offline');
+      let fallbackAccs: TradingAccount[] = [];
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) fallbackAccs = parsed.filter((a: any) => !a.is_archived);
+        } catch (e) {}
+      }
+      setAccounts(fallbackAccs);
+
+      const cachedTrades = localStorage.getItem('trades_offline');
+      let fallbackTrades: RawTrade[] = [];
+      if (cachedTrades) {
+        try {
+          const parsed = JSON.parse(cachedTrades);
+          if (Array.isArray(parsed)) fallbackTrades = parsed;
+        } catch (e) {}
+      }
+      setRawTrades(fallbackTrades);
     } finally {
       setIsLoading(false);
     }
@@ -113,28 +148,18 @@ export function StatsView() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      setIsLoading(false);
+      fetchData();
       return;
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchData(session.user.id);
-      } else {
-        setIsLoading(false);
-      }
+      fetchData(session?.user?.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchData(session.user.id);
-      } else {
-        setRawTrades([]);
-        setAccounts([]);
-        setIsLoading(false);
-      }
+      fetchData(session?.user?.id);
     });
 
     return () => subscription.unsubscribe();
@@ -145,14 +170,17 @@ export function StatsView() {
     return enrichTradesWithHistoricalData(rawTrades, accounts);
   }, [rawTrades, accounts]);
 
-  // Total starting balance across selected accounts (or all active accounts)
+  // Total starting balance: for selected account or sum of all accounts if 'all'
   const startingBalance = useMemo(() => {
-    const selectedAccs = filters.accountId && filters.accountId !== 'all'
-      ? accounts.filter((a) => a.id === filters.accountId)
-      : accounts;
-    return selectedAccs.reduce((sum, acc) => {
-      const init = Number(acc.initial_balance ?? acc.balance ?? 10000);
-      return sum + (isNaN(init) ? 10000 : init);
+    if (filters.accountId && filters.accountId !== 'all') {
+      const acc = accounts.find((a) => String(a.id) === String(filters.accountId));
+      if (!acc) return 0;
+      const init = Number(acc.initial_balance ?? acc.balance ?? 0);
+      return isNaN(init) || init <= 0 ? 0 : init;
+    }
+    return accounts.reduce((sum, acc) => {
+      const init = Number(acc.initial_balance ?? acc.balance ?? 0);
+      return sum + (isNaN(init) || init <= 0 ? 0 : init);
     }, 0);
   }, [accounts, filters.accountId]);
 

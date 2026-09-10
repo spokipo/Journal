@@ -4,8 +4,8 @@ import { AppLayout } from '../components/AppLayout';
 import { SettingsView } from '../components/settings/SettingsView';
 ---
 
-<Layout title="Settings - Trading Journal">
-  <AppLayout activeTab="settings" client:load>
-    <SettingsView client:only="react" />
+<Layout title="Settings - Trading Journal" activeTab="settings">
+  <AppLayout activeTab="settings">
+    <SettingsView client:load />
   </AppLayout>
 </Layout>

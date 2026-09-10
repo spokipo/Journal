@@ -4,9 +4,9 @@ import { AppLayout } from '../components/AppLayout';
 import { SystemView } from '../components/system/SystemView';
 ---
 
-<Layout title="System - Trading Journal">
-  <AppLayout activeTab="system" client:load>
-    <SystemView client:only="react" />
+<Layout title="System - Trading Journal" activeTab="system">
+  <AppLayout activeTab="system">
+    <SystemView client:load />
   </AppLayout>
 </Layout>
 

@@ -6,6 +6,8 @@ export type WidgetSize = 'small' | 'medium' | 'large';
 export interface WidgetProps {
   size: WidgetSize;
   account?: TradingAccount | null;
+  accounts?: TradingAccount[];
+  totalStartingBalance?: number;
   stats?: StatsSummary | null;
   todayTrades?: EnrichedTrade[];
   allTrades?: EnrichedTrade[];

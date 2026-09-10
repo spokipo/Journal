@@ -418,7 +418,7 @@ export function Dashboard() {
   // Filter trades for the selected account
   const filteredTrades = useMemo(() => {
     if (selectedAccountId === 'all') return enrichedTrades;
-    return enrichedTrades.filter(t => t.account_id === selectedAccountId);
+    return enrichedTrades.filter(t => t.account_id && String(t.account_id) === String(selectedAccountId));
   }, [enrichedTrades, selectedAccountId]);
 
   // Trades executed today (using user device's local date)
@@ -436,15 +436,26 @@ export function Dashboard() {
     });
   }, [filteredTrades]);
 
-  // Compute stats for current account slice
+  // Starting balance across selected account or all accounts
+  const totalStartingBalance = useMemo(() => {
+    if (activeAccount) {
+      return Number(activeAccount.initial_balance ?? activeAccount.balance ?? 0);
+    }
+    return accounts.reduce((sum, a) => {
+      const init = Number(a.initial_balance ?? a.balance ?? 0);
+      return sum + (isNaN(init) || init < 0 ? 0 : init);
+    }, 0);
+  }, [accounts, activeAccount]);
+
+  // Compute stats for current account slice (or all accounts)
   const computedStats = useMemo<StatsSummary | null>(() => {
     try {
-      return calculateStatistics(filteredTrades, accounts, selectedAccountId);
+      return calculateStatistics(filteredTrades, {}, {}, totalStartingBalance);
     } catch (e) {
       console.error('Error calculating statistics:', e);
       return null;
     }
-  }, [filteredTrades, accounts, selectedAccountId]);
+  }, [filteredTrades, totalStartingBalance]);
 
   // Account options for Select component
   const accountOptions: SelectOption[] = useMemo(() => {
@@ -458,13 +469,10 @@ export function Dashboard() {
       ];
     }
 
-    const totalBalance = accounts.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
-    const allLabel = `All Accounts ($${(totalBalance / 1000).toFixed(0)}k)`;
-
     const list: SelectOption[] = [
       {
         value: 'all',
-        label: allLabel,
+        label: 'All Accounts',
         icon: Wallet,
       },
     ];
@@ -533,10 +541,13 @@ export function Dashboard() {
   // Data bundle passed down to each widget
   const sharedWidgetData = {
     account: activeAccount,
+    accounts,
+    totalStartingBalance,
     stats: computedStats,
     todayTrades,
     allTrades: filteredTrades,
-    currencySymbol: activeAccount?.currency === 'EUR' ? '€' : '$',
+    trades: filteredTrades,
+    currencySymbol: activeAccount?.currency === 'EUR' ? '€' : activeAccount?.currency === 'GBP' ? '£' : '$',
     ideas,
     dailyRiskLimit,
     onUpdateDailyRiskLimit: handleUpdateDailyRiskLimit,

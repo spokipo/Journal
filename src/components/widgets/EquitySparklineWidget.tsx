@@ -9,28 +9,28 @@ import { formatCurrency, formatCompactCurrency } from './common/formatters';
 export function EquitySparklineWidget({ 
   size, 
   account, 
+  accounts = [],
   stats, 
   currencySymbol = '$' 
 }: WidgetProps) {
-  // Determine balance and PnL
-  const currentBalance = account 
-    ? (account.current_balance ?? account.balance ?? 10000)
-    : (stats?.equityCurve?.length 
-        ? stats.equityCurve[stats.equityCurve.length - 1].totalBalance 
-        : 10000);
+  const totalAccountsBalance = accounts.reduce(
+    (sum, a) => sum + Number(a.initial_balance ?? a.balance ?? 0),
+    0
+  );
 
   const initialBalance = account 
-    ? (account.initial_balance ?? 10000)
-    : 10000;
+    ? Number(account.initial_balance ?? account.balance ?? 0)
+    : totalAccountsBalance;
 
-  const netPnlAmount = stats ? stats.netAmount : (currentBalance - initialBalance);
+  const netPnlAmount = stats?.netAmount ?? 0;
+  const currentBalance = initialBalance + netPnlAmount;
   const netPnlPercent = initialBalance > 0 ? (netPnlAmount / initialBalance) * 100 : 0;
   const isPositive = netPnlAmount >= 0;
 
   // Extract points for sparkline from equity curve
   const points = stats?.equityCurve && stats.equityCurve.length >= 2
-    ? stats.equityCurve.map(p => p.totalBalance)
-    : [initialBalance, initialBalance * 1.01, initialBalance * 0.995, initialBalance * 1.02, currentBalance];
+    ? stats.equityCurve.map(p => p.totalBalance ?? initialBalance)
+    : [initialBalance, currentBalance];
 
   if (size === 'small') {
     return (
@@ -108,11 +108,15 @@ export function EquitySparklineWidget({
               {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
               {isPositive ? '+' : ''}{formatCurrency(netPnlAmount, currencySymbol)} ({isPositive ? '+' : ''}{netPnlPercent.toFixed(2)}%)
             </span>
-            {account && (
+            {account ? (
               <span className="text-xs text-text-muted">
                 {account.name}
               </span>
-            )}
+            ) : accounts.length > 0 ? (
+              <span className="text-xs text-text-muted">
+                All Accounts ({accounts.length})
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="text-right">
@@ -126,9 +130,7 @@ export function EquitySparklineWidget({
         </div>
       </div>
 
-      {/* Main SVG Area Chart conforming strictly to §8 Data Viz */}
       <div className="flex-1 w-full bg-canvas/30 rounded-[18px] p-3 border border-border-card flex flex-col justify-between relative overflow-hidden min-h-[140px]">
-        {/* Horizontal gridlines (§8: border-border-card on 40% opacity, no vertical lines) */}
         <div className="absolute inset-x-0 top-1/4 border-b border-border-card/40 pointer-events-none" />
         <div className="absolute inset-x-0 top-2/4 border-b border-border-card/40 pointer-events-none" />
         <div className="absolute inset-x-0 top-3/4 border-b border-border-card/40 pointer-events-none" />
@@ -137,11 +139,10 @@ export function EquitySparklineWidget({
           <Sparkline points={points} isPositive={isPositive} height={120} width={340} fill />
         </div>
 
-        {/* Legend / Metrics Row */}
         <div className="flex items-center justify-between text-[0.6875rem] text-text-muted font-mono mt-2 pt-2 border-t border-border-card/40 z-10 shrink-0">
           <span>Trades: {stats?.totalTrades ?? points.length}</span>
           <span>Max DD: {(stats?.maxDrawdownPercent ?? 0).toFixed(1)}%</span>
-          <span>Profit Factor: {(stats?.profitFactorAmount ?? 1).toFixed(2)}</span>
+          <span>Profit Factor: {(stats?.profitFactorAmount ?? stats?.profitFactorR ?? 1).toFixed(2)}</span>
         </div>
       </div>
     </WidgetCard>

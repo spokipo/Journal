@@ -78,7 +78,9 @@ export function StatsBreakdowns({
                       {item.netR > 0 ? `+${item.netR.toFixed(2)}` : item.netR.toFixed(2)} R
                     </span>
                     <span className="text-[0.6875rem] font-mono text-text-muted block">
-                      {item.netAmount >= 0 ? '+' : ''}${item.netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {item.netAmount !== null && item.netAmount !== undefined
+                        ? `${item.netAmount >= 0 ? '+' : ''}$${item.netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '—'}
                     </span>
                   </div>
                   <div className="text-right">
@@ -146,10 +148,14 @@ export function StatsBreakdowns({
                     <td
                       className={cn(
                         "py-3 px-3 text-right font-mono tabular-nums font-semibold",
-                        item.netAmount > 0 ? "text-emerald-500" : item.netAmount < 0 ? "text-rose-500" : "text-text-main"
+                        item.netAmount !== null && item.netAmount !== undefined
+                          ? (item.netAmount > 0 ? "text-emerald-500" : item.netAmount < 0 ? "text-rose-500" : "text-text-main")
+                          : "text-text-muted"
                       )}
                     >
-                      {item.netAmount >= 0 ? '+' : ''}${item.netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {item.netAmount !== null && item.netAmount !== undefined
+                        ? `${item.netAmount >= 0 ? '+' : ''}$${item.netAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '—'}
                     </td>
                     <td className="py-3 px-3 text-right font-mono tabular-nums text-text-main">
                       {item.profitFactor > 0 ? item.profitFactor.toFixed(2) : '—'}
@@ -213,7 +219,9 @@ export function StatsBreakdowns({
                       {isPos ? `+${day.netR.toFixed(2)}` : day.netR.toFixed(2)}R
                     </span>
                     <span className="text-[0.625rem] text-text-muted block">
-                      {day.netAmount >= 0 ? '+' : ''}${day.netAmount.toFixed(2)}
+                      {day.netAmount !== null && day.netAmount !== undefined
+                        ? `${day.netAmount >= 0 ? '+' : ''}$${day.netAmount.toFixed(2)}`
+                        : '—'}
                     </span>
                   </div>
                 </div>

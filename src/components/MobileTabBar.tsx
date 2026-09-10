@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -13,10 +13,10 @@ import {
   Sun, 
   Moon, 
   LogOut, 
-  Loader2,
-  ChevronRight,
-  BookMarked,
-  Cpu
+  Loader2, 
+  ChevronRight, 
+  BookMarked, 
+  Cpu 
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../lib/useTheme';
@@ -29,7 +29,6 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 const TABS = [
   { id: 'dashboard', icon: LayoutDashboard, href: '/', label: 'Dashboard' },
   { id: 'journal', icon: BookOpen, href: '/journal', label: 'Journal' },
-  { id: 'add', isAdd: true },
   { id: 'stats', icon: BarChart2, href: '/stats', label: 'Stats' },
   { id: 'menu', icon: Menu, isMenu: true, label: 'Menu' },
 ];
@@ -43,36 +42,62 @@ const MENU_ITEMS = [
   { id: 'settings', icon: Settings, label: 'Settings', href: '/settings' },
 ];
 
+const getTabFromPath = (path: string, fallback: string) => {
+  if (path === '/') return 'dashboard';
+  if (path.startsWith('/journal')) return 'journal';
+  if (path.startsWith('/stats')) return 'stats';
+  if (path.startsWith('/playbook') || path.startsWith('/system') || path.startsWith('/settings')) return 'menu';
+  return fallback;
+};
+
 export function MobileTabBar({ activeTab }: { activeTab: string }) {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const { theme, toggleTheme } = useTheme();
 
-  // Modals and Drawer state
+  const [selectedTab, setSelectedTab] = useState(activeTab);
+
+  // Синхронизация с переходами Astro через ClientRouter
+  useEffect(() => {
+    const syncTab = () => {
+      if (typeof window !== 'undefined') {
+        setSelectedTab(getTabFromPath(window.location.pathname, activeTab));
+      }
+    };
+
+    syncTab();
+    document.addEventListener('astro:after-swap', syncTab);
+    document.addEventListener('astro:page-load', syncTab);
+    window.addEventListener('popstate', syncTab);
+
+    return () => {
+      document.removeEventListener('astro:after-swap', syncTab);
+      document.removeEventListener('astro:page-load', syncTab);
+      window.removeEventListener('popstate', syncTab);
+    };
+  }, [activeTab]);
+
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isTradeModalOpen, setTradeModalOpen] = useState(false);
   const [isIdeaModalOpen, setIdeaModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
 
-  // Auth & User state
   const [user, setUser] = useState<any>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const currentTab = isMobileMenuOpen ? 'menu' : selectedTab;
+  const isAnyModalOpen = isTradeModalOpen || isIdeaModalOpen || isAuthModalOpen;
+
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -80,12 +105,9 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
       window.location.href = '/login';
       return;
     }
-
     try {
       setIsLoggingOut(true);
-      if (isSupabaseConfigured) {
-        await supabase.auth.signOut();
-      }
+      if (isSupabaseConfigured) await supabase.auth.signOut();
       setUser(null);
       window.location.href = '/login';
     } catch (err) {
@@ -101,10 +123,16 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
     : 'Trader Pro';
   const avatarInitial = (displayName[0] || 'T').toUpperCase();
 
-  // Scroll detection to hide/show tab bar
   useEffect(() => {
+    const mainEl = document.getElementById('main-scroll-container') || window;
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+      if (isMobileMenuOpen) {
+        setIsVisible(true);
+        return;
+      }
+      const currentScrollY = mainEl instanceof HTMLElement ? mainEl.scrollTop : window.scrollY;
+      
       if (currentScrollY > lastScrollY && currentScrollY > 60) {
         setIsVisible(false);
         setShowAddMenu(false);
@@ -114,17 +142,15 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
       setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+    mainEl.addEventListener('scroll', handleScroll, { passive: true });
+    return () => mainEl.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY, isMobileMenuOpen]);
 
-  // Lock body scroll via shared design system util
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     return lockBodyScroll();
   }, [isMobileMenuOpen]);
 
-  // Keyboard accessibility: Escape closes open overlays
   useEffect(() => {
     if (!showAddMenu && !isMobileMenuOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -139,137 +165,6 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
 
   return (
     <>
-      <motion.div 
-        initial={false}
-        animate={{ y: isVisible && !isMobileMenuOpen ? 0 : '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border-card"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        {/* Action Sheet */}
-        <AnimatePresence>
-          {showAddMenu && (
-            <>
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="fixed inset-0 z-40 bg-black/60"
-                onClick={() => setShowAddMenu(false)}
-                aria-hidden="true"
-              />
-              <motion.div 
-                initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 12, scale: 0.96 }}
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-[220px] bg-card border border-border-card rounded-[26px] p-2 shadow-2xl z-50 flex flex-col gap-1"
-                role="menu"
-                aria-label="Add options"
-              >
-                <button 
-                  type="button"
-                  onClick={() => { setTradeModalOpen(true); setShowAddMenu(false); }}
-                  className="flex items-center gap-3 w-full min-h-11 px-3 py-2 rounded-[18px] text-text-main hover:bg-canvas transition-colors active:scale-[0.98] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
-                >
-                  <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500">
-                    <Zap size={18} /> 
-                  </div>
-                  <span className="font-semibold text-sm">Log Trade</span>
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => { setIdeaModalOpen(true); setShowAddMenu(false); }}
-                  className="flex items-center gap-3 w-full min-h-11 px-3 py-2 rounded-[18px] text-text-main hover:bg-canvas transition-colors active:scale-[0.98] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
-                >
-                  <div className="w-9 h-9 rounded-[14px] bg-amber-500/10 flex items-center justify-center shrink-0 text-amber-500">
-                    <Lightbulb size={18} /> 
-                  </div>
-                  <span className="font-semibold text-sm">New Idea</span>
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
-        {/* Bottom Tab Bar */}
-        <div className="flex items-center justify-around h-16 px-2">
-          {TABS.map((tab) => {
-            if (tab.isAdd) {
-              return (
-                <div key="add" className="flex items-center justify-center h-full px-2">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setShowAddMenu((prev) => !prev);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={cn(
-                      "min-w-11 min-h-11 w-11 h-11 rounded-[18px] flex items-center justify-center transition-all active:scale-95 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 cursor-pointer",
-                      showAddMenu 
-                        ? "bg-rose-500 text-white rotate-45 shadow-rose-500/20" 
-                        : "bg-blue-500 text-white shadow-blue-500/20"
-                    )}
-                    aria-label="Add entry"
-                    aria-expanded={showAddMenu}
-                  >
-                    <Plus size={20} className="transition-transform duration-200" />
-                  </button>
-                </div>
-              );
-            }
-
-            if (tab.isMenu) {
-              const Icon = tab.icon!;
-              return (
-                <button
-                  key="menu"
-                  type="button"
-                  onClick={() => {
-                    setIsMobileMenuOpen(true);
-                    setShowAddMenu(false);
-                  }}
-                  className={cn(
-                    "min-w-11 min-h-11 w-16 h-full flex flex-col items-center justify-center transition-colors cursor-pointer active:scale-95 outline-none focus-visible:text-blue-500",
-                    isMobileMenuOpen ? "text-blue-500" : "text-text-muted hover:text-text-main"
-                  )}
-                  aria-label="Open mobile menu"
-                >
-                  <Icon size={20} />
-                  <span className="text-[0.6875rem] font-medium mt-1">Menu</span>
-                </button>
-              );
-            }
-
-            const Icon = tab.icon!;
-            const isActive = activeTab === tab.id;
-
-            return (
-              <a
-                key={tab.id}
-                href={tab.href}
-                data-astro-prefetch="load"
-                className={cn(
-                  "min-w-11 min-h-11 w-16 h-full flex flex-col items-center justify-center transition-colors active:scale-95 outline-none focus-visible:text-blue-500",
-                  isActive ? "text-blue-500" : "text-text-muted hover:text-text-main"
-                )}
-                aria-label={tab.label}
-              >
-                <Icon size={20} />
-                <span className={cn(
-                  "text-[0.6875rem] mt-1",
-                  isActive ? "font-semibold text-blue-500" : "font-medium text-text-muted"
-                )}>
-                  {tab.label}
-                </span>
-              </a>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      {/* Mobile Full-Screen Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
@@ -280,12 +175,9 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
             role="dialog"
             aria-modal="true"
             aria-label="Navigation Menu"
-            className="md:hidden fixed inset-0 z-50 bg-canvas flex flex-col overflow-hidden text-text-main"
-            style={{ 
-              paddingTop: 'env(safe-area-inset-top, 0px)'
-            }}
+            className="md:hidden fixed inset-0 z-40 bg-canvas flex flex-col overflow-hidden text-text-main"
+            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
           >
-            {/* Top Bar */}
             <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
               <span className="text-xl font-bold text-text-main tracking-tight">Menu</span>
               <button 
@@ -298,14 +190,10 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
               </button>
             </div>
 
-            {/* Scrollable Canvas */}
             <div 
               className="flex-1 overflow-y-auto px-6 py-2 flex flex-col space-y-4 custom-scrollbar"
-              style={{ 
-                paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' 
-              }}
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' }}
             >
-              {/* Profile Card Section */}
               <a 
                 href={user ? "/settings?section=profile" : "#"}
                 onClick={(e) => {
@@ -323,7 +211,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                     window.dispatchEvent(new PopStateEvent('popstate'));
                   }
                 }}
-                data-astro-prefetch="load"
+                data-astro-prefetch="hover"
                 className="w-full p-4 flex items-center bg-card border border-border-card rounded-[26px] shadow-sm transition-all cursor-pointer active:scale-[0.98] group"
               >
                 <div className="w-11 h-11 rounded-full bg-blue-500/10 shrink-0 flex items-center justify-center text-blue-500 font-bold text-base border border-blue-500/20 relative overflow-hidden">
@@ -337,11 +225,11 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                     avatarInitial
                   )}
                 </div>
-                <div className="ml-3.5 overflow-hidden flex-1 min-w-0">
+                <div className="ml-3 overflow-hidden flex-1 min-w-0">
                   <div className="font-semibold text-text-main text-sm truncate">
                     {displayName}
                   </div>
-                  <div className="text-xs text-text-muted truncate flex items-center gap-1.5 mt-0.5">
+                  <div className="text-xs text-text-muted truncate flex items-center gap-2 mt-1">
                     <span className={cn(
                       "w-1.5 h-1.5 rounded-full shrink-0",
                       user ? "bg-emerald-500" : "bg-amber-500"
@@ -352,19 +240,18 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                 <ChevronRight size={18} className="text-text-muted group-hover:text-text-main transition-colors shrink-0 ml-2" />
               </a>
 
-              {/* Navigation Group */}
               <div className="space-y-2">
                 <div className="text-xs font-semibold uppercase tracking-wider text-text-muted px-2">
                   Navigation
                 </div>
                 <div className="bg-card border border-border-card rounded-[26px] p-2 space-y-1 shadow-sm">
                   {MENU_ITEMS.map((item) => {
-                    const isActive = activeTab === item.id;
+                    const isActive = (isMobileMenuOpen ? (typeof window !== 'undefined' && (item.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(item.href))) : activeTab === item.id);
                     return (
                       <a
                         key={item.id}
                         href={item.href}
-                        data-astro-prefetch="load"
+                        data-astro-prefetch="hover"
                         onClick={() => setIsMobileMenuOpen(false)}
                         className={cn(
                           "w-full min-h-11 px-3.5 flex items-center rounded-[18px] transition-all active:scale-[0.98] outline-none",
@@ -389,13 +276,11 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                 </div>
               </div>
 
-              {/* Preferences & Account */}
               <div className="space-y-2">
                 <div className="text-xs font-semibold uppercase tracking-wider text-text-muted px-2">
                   Preferences & Account
                 </div>
                 <div className="bg-card border border-border-card rounded-[26px] p-2 space-y-1 shadow-sm">
-                  {/* Theme Switcher */}
                   <button 
                     type="button"
                     onClick={toggleTheme}
@@ -418,7 +303,6 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
 
                   <div className="h-px bg-border-card/60 mx-2" />
 
-                  {/* Sign In / Sign Out */}
                   <button 
                     type="button"
                     onClick={handleLogout}
@@ -446,7 +330,160 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
         )}
       </AnimatePresence>
 
-      {/* Global Modals */}
+      <AnimatePresence>
+        {showAddMenu && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="md:hidden fixed inset-0 z-50 bg-black/60"
+              onClick={() => setShowAddMenu(false)}
+              aria-hidden="true"
+            />
+            <motion.div 
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="md:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+76px)] right-4 w-[220px] bg-card border border-border-card rounded-[26px] p-2 shadow-2xl z-50 flex flex-col gap-1"
+              role="menu"
+              aria-label="Add options"
+            >
+              <button 
+                type="button"
+                onClick={() => { setTradeModalOpen(true); setShowAddMenu(false); }}
+                className="flex items-center gap-3 w-full min-h-11 px-3 py-2 rounded-[18px] text-text-main hover:bg-canvas transition-colors active:scale-[0.98] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+              >
+                <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500">
+                  <Zap size={18} /> 
+                </div>
+                <span className="font-semibold text-sm">Log Trade</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => { setIdeaModalOpen(true); setShowAddMenu(false); }}
+                className="flex items-center gap-3 w-full min-h-11 px-3 py-2 rounded-[18px] text-text-main hover:bg-canvas transition-colors active:scale-[0.98] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+              >
+                <div className="w-9 h-9 rounded-[14px] bg-amber-500/10 flex items-center justify-center shrink-0 text-amber-500">
+                  <Lightbulb size={18} /> 
+                </div>
+                <span className="font-semibold text-sm">New Idea</span>
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <LayoutGroup id="mobile-tabbar-root">
+        <motion.div 
+          initial={false}
+          animate={{ y: isVisible && !isAnyModalOpen ? 0 : 120 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-3 sm:px-4 pb-[max(env(safe-area-inset-bottom,0px),12px)] pointer-events-none flex items-center justify-between gap-3"
+        >
+          <nav 
+            aria-label="Mobile Navigation"
+            className="flex-1 h-14 bg-card/90 backdrop-blur-xl border border-border-card rounded-full shadow-lg p-1 flex items-center justify-around pointer-events-auto"
+          >
+            {TABS.map((tab) => {
+              const isActive = currentTab === tab.id;
+              const Icon = tab.icon;
+
+              if (tab.isMenu) {
+                return (
+                  <button
+                    key="menu"
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen((prev) => !prev);
+                      setShowAddMenu(false);
+                    }}
+                    className={cn(
+                      "relative flex-1 min-w-11 min-h-11 h-full flex items-center justify-center transition-colors cursor-pointer active:scale-95 outline-none rounded-full select-none focus-visible:ring-2 focus-visible:ring-blue-500/20",
+                      isActive ? "text-blue-500" : "text-text-muted hover:text-text-main"
+                    )}
+                    aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                    aria-expanded={isMobileMenuOpen}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="mobile-tabbar-capsule"
+                        transition={{ type: 'spring', stiffness: 480, damping: 34 }}
+                        className="absolute inset-0 rounded-full bg-canvas border border-border-card shadow-sm"
+                      />
+                    )}
+                    <motion.div
+                      animate={{ scale: isActive ? 1.08 : 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                      className="relative z-10 flex items-center justify-center"
+                    >
+                      <Icon size={22} />
+                    </motion.div>
+                  </button>
+                );
+              }
+
+              return (
+                <a
+                  key={tab.id}
+                  href={tab.href}
+                  data-astro-prefetch="hover"
+                  onClick={() => {
+                    setSelectedTab(tab.id);
+                    if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+                  }}
+                  className={cn(
+                    "relative flex-1 min-w-11 min-h-11 h-full flex items-center justify-center transition-colors active:scale-95 outline-none rounded-full select-none focus-visible:ring-2 focus-visible:ring-blue-500/20",
+                    isActive ? "text-blue-500" : "text-text-muted hover:text-text-main"
+                  )}
+                  aria-label={tab.label}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="mobile-tabbar-capsule"
+                      transition={{ type: 'spring', stiffness: 480, damping: 34 }}
+                      className="absolute inset-0 rounded-full bg-canvas border border-border-card shadow-sm"
+                    />
+                  )}
+                  <motion.div
+                    animate={{ scale: isActive ? 1.08 : 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    className="relative z-10 flex items-center justify-center"
+                  >
+                    <Icon size={22} />
+                  </motion.div>
+                </a>
+              );
+            })}
+          </nav>
+
+          <div className="relative shrink-0 pointer-events-auto">
+            <button 
+              type="button"
+              onClick={() => setShowAddMenu((prev) => !prev)}
+              className={cn(
+                "min-w-11 min-h-11 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 cursor-pointer",
+                showAddMenu 
+                  ? "bg-rose-500 text-white shadow-rose-500/20" 
+                  : "bg-blue-500 text-white shadow-blue-500/20"
+              )}
+              aria-label="Add entry"
+              aria-expanded={showAddMenu}
+            >
+              <Plus 
+                size={22} 
+                className={cn(
+                  "transition-transform duration-200", 
+                  showAddMenu && "rotate-45"
+                )} 
+              />
+            </button>
+          </div>
+        </motion.div>
+      </LayoutGroup>
+
       <TradeModal isOpen={isTradeModalOpen} onClose={() => setTradeModalOpen(false)} user={user} />
       <IdeaModal isOpen={isIdeaModalOpen} onClose={() => setIdeaModalOpen(false)} user={user} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />

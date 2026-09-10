@@ -25,15 +25,18 @@ export function StatsMetricsGrid({
 }: StatsMetricsGridProps) {
   const isPositiveR = stats.netR > 0;
   const isNegativeR = stats.netR < 0;
-  const isPositiveAmt = stats.netAmount > 0;
-  const isNegativeAmt = stats.netAmount < 0;
+  const isPositiveAmt = (stats.netAmount ?? 0) > 0;
+  const isNegativeAmt = (stats.netAmount ?? 0) < 0;
 
   const formatR = (r: number) => {
     const sign = r > 0 ? '+' : '';
     return `${sign}${r.toFixed(2)} R`;
   };
 
-  const formatMoney = (val: number) => {
+  const formatMoney = (val: number | null | undefined) => {
+    if (val === null || val === undefined) {
+      return '—';
+    }
     const sign = val > 0 ? '+' : val < 0 ? '-' : '';
     const abs = Math.abs(val).toLocaleString('en-US', {
       minimumFractionDigits: 2,
@@ -103,7 +106,7 @@ export function StatsMetricsGrid({
 
         <div className="pt-3 mt-3 border-t border-border-card text-[0.6875rem] text-text-muted flex items-center justify-between font-mono">
           <span>Gross Win: {metricMode === 'amount' ? formatMoney(stats.grossWinAmount) : `+${stats.grossWinR.toFixed(1)}R`}</span>
-          <span>Gross Loss: {metricMode === 'amount' ? formatMoney(-stats.grossLossAmount) : `-${stats.grossLossR.toFixed(1)}R`}</span>
+          <span>Gross Loss: {metricMode === 'amount' ? formatMoney(stats.grossLossAmount !== null && stats.grossLossAmount !== undefined ? -stats.grossLossAmount : null) : `-${stats.grossLossR.toFixed(1)}R`}</span>
         </div>
       </div>
 
@@ -179,7 +182,7 @@ export function StatsMetricsGrid({
 
         <div className="pt-3 mt-3 border-t border-border-card text-[0.6875rem] text-text-muted flex items-center justify-between font-mono">
           <span>Wins: {formatMoney(stats.grossWinAmount)}</span>
-          <span>Losses: {formatMoney(stats.grossLossAmount)}</span>
+          <span>Losses: {formatMoney(stats.grossLossAmount !== null && stats.grossLossAmount !== undefined ? -stats.grossLossAmount : null)}</span>
         </div>
       </div>
 
@@ -239,7 +242,7 @@ export function StatsMetricsGrid({
 
         <div className="pt-3 mt-3 border-t border-border-card text-[0.6875rem] text-text-muted flex items-center justify-between font-mono">
           <span className="text-emerald-500/80">Avg: {formatMoney(stats.avgWinAmount)}</span>
-          <span className="text-rose-500/80">Avg: -{formatMoney(stats.avgLossAmount)}</span>
+          <span className="text-rose-500/80">Avg: {formatMoney(stats.avgLossAmount !== null && stats.avgLossAmount !== undefined ? -stats.avgLossAmount : null)}</span>
         </div>
       </div>
 
@@ -257,7 +260,9 @@ export function StatsMetricsGrid({
             -{stats.maxDrawdownR.toFixed(2)}R
           </div>
           <div className="text-[0.6875rem] text-text-muted font-mono mt-1">
-            -{formatMoney(stats.maxDrawdownAmount)} ({stats.maxDrawdownPercent.toFixed(1)}%)
+            {stats.maxDrawdownAmount !== null && stats.maxDrawdownAmount !== undefined
+              ? `-${formatMoney(stats.maxDrawdownAmount)} (${(stats.maxDrawdownPercent ?? 0).toFixed(1)}%)`
+              : '—'}
           </div>
         </div>
 

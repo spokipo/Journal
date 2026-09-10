@@ -158,7 +158,7 @@ export function StatsTradesTable({
                   {/* Middle Row: Account & Setup */}
                   <div className="flex items-center justify-between text-xs text-text-muted pt-1 border-t border-border-card/60">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-text-main">{t.account_name}</span>
+                      <span className="font-medium text-text-main">{t.account_name || 'No account'}</span>
                       {t.setup_id && (
                         <>
                           <span>•</span>
@@ -166,7 +166,9 @@ export function StatsTradesTable({
                         </>
                       )}
                     </div>
-                    <span className="font-mono text-[0.6875rem]">Risk: ${t.risk_amount.toFixed(0)}</span>
+                    <span className="font-mono text-[0.6875rem]">
+                      Risk: {t.risk_percent}%{t.risk_amount !== null && t.risk_amount !== undefined ? ` ($${t.risk_amount.toFixed(0)})` : ''}
+                    </span>
                   </div>
 
                   {/* Bottom Row: Result in R and $ */}
@@ -184,10 +186,14 @@ export function StatsTradesTable({
                       <span
                         className={cn(
                           "font-bold",
-                          t.pnl_amount > 0 ? "text-emerald-500" : t.pnl_amount < 0 ? "text-rose-500" : "text-text-main"
+                          t.pnl_amount !== null && t.pnl_amount !== undefined
+                            ? (t.pnl_amount > 0 ? "text-emerald-500" : t.pnl_amount < 0 ? "text-rose-500" : "text-text-main")
+                            : "text-text-muted"
                         )}
                       >
-                        {t.pnl_amount >= 0 ? '+' : ''}${t.pnl_amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {t.pnl_amount !== null && t.pnl_amount !== undefined
+                          ? `${t.pnl_amount >= 0 ? '+' : ''}$${t.pnl_amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : '—'}
                       </span>
                       <ExternalLink size={13} className="text-text-muted" />
                     </div>
@@ -253,7 +259,7 @@ export function StatsTradesTable({
                       {/* Account */}
                       <td className="py-3 px-3 text-text-muted">
                         <span className="truncate max-w-[110px] inline-block font-medium">
-                          {t.account_name}
+                          {t.account_name || 'No account'}
                         </span>
                       </td>
 
@@ -268,7 +274,7 @@ export function StatsTradesTable({
                       <td className="py-3 px-3 text-right font-mono tabular-nums text-text-muted">
                         <span>{t.risk_percent}%</span>
                         <span className="text-[0.625rem] block text-text-muted/80">
-                          ${t.risk_amount.toFixed(0)}
+                          {t.risk_amount !== null && t.risk_amount !== undefined ? `$${t.risk_amount.toFixed(0)}` : '—'}
                         </span>
                       </td>
 
@@ -299,10 +305,14 @@ export function StatsTradesTable({
                       <td
                         className={cn(
                           "py-3 px-3 text-right font-mono tabular-nums font-bold",
-                          t.pnl_amount > 0 ? "text-emerald-500" : t.pnl_amount < 0 ? "text-rose-500" : "text-text-main"
+                          t.pnl_amount !== null && t.pnl_amount !== undefined
+                            ? (t.pnl_amount > 0 ? "text-emerald-500" : t.pnl_amount < 0 ? "text-rose-500" : "text-text-main")
+                            : "text-text-muted"
                         )}
                       >
-                        {t.pnl_amount >= 0 ? '+' : ''}${t.pnl_amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {t.pnl_amount !== null && t.pnl_amount !== undefined
+                          ? `${t.pnl_amount >= 0 ? '+' : ''}$${t.pnl_amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : '—'}
                       </td>
 
                       {/* Action */}

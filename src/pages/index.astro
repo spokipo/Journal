@@ -4,8 +4,8 @@ import { AppLayout } from '../components/AppLayout';
 import { Dashboard } from '../components/Dashboard';
 ---
 
-<Layout title="Trading Journal">
-  <AppLayout activeTab="dashboard" client:load>
+<Layout title="Dashboard - Trading Journal" activeTab="dashboard">
+  <AppLayout activeTab="dashboard">
     <Dashboard client:load />
   </AppLayout>
 </Layout>

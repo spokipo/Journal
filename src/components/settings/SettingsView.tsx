@@ -698,17 +698,13 @@ export function SettingsView() {
     const enriched = enrichTradesWithHistoricalData(trades, accounts);
     const statsMap = new Map<string, AccountPerformance>();
 
-    // Fallback default account
-    const defaultAcc = accounts.find((a) => a.is_default) || accounts[0];
-
-    // Group enriched trades by account id
+    // Group enriched trades strictly by account id (only for trades assigned to this account)
     const tradesByAcc = new Map<string, EnrichedTrade[]>();
     enriched.forEach((t) => {
-      const accId = t.account_id || defaultAcc?.id;
-      if (!accId) return;
-      const list = tradesByAcc.get(accId) || [];
+      if (!t.account_id) return;
+      const list = tradesByAcc.get(t.account_id) || [];
       list.push(t);
-      tradesByAcc.set(accId, list);
+      tradesByAcc.set(t.account_id, list);
     });
 
     let sumCurrentBalance = 0;
@@ -725,9 +721,11 @@ export function SettingsView() {
     accounts.forEach((acc) => {
       const accTrades = tradesByAcc.get(acc.id) || [];
       const initBal = Number(
-        acc.initial_balance !== undefined && acc.initial_balance !== null && acc.initial_balance > 0
+        acc.initial_balance !== undefined && acc.initial_balance !== null && Number(acc.initial_balance) > 0
           ? acc.initial_balance
-          : acc.balance > 0 ? acc.balance : 10000
+          : acc.balance !== undefined && acc.balance !== null && Number(acc.balance) > 0
+          ? acc.balance
+          : 0
       );
 
       const tradesCount = accTrades.length;
@@ -738,14 +736,15 @@ export function SettingsView() {
       let be = 0;
 
       accTrades.forEach((t) => {
-        netPnL += t.pnl_amount;
+        const amt = t.pnl_amount ?? 0;
+        netPnL += amt;
         netR += t.pnl_r;
-        if (t.outcome === 'TP' || t.pnl_amount > 0) {
+        if (t.outcome === 'TP' || amt > 0) {
           wins++;
-          grossWinAmt += t.pnl_amount;
-        } else if (t.outcome === 'SL' || t.pnl_amount < 0) {
+          grossWinAmt += amt;
+        } else if (t.outcome === 'SL' || amt < 0) {
           losses++;
-          grossLossAmt += Math.abs(t.pnl_amount);
+          grossLossAmt += Math.abs(amt);
         } else {
           be++;
         }

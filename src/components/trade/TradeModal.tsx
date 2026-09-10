@@ -385,6 +385,16 @@ export function TradeModal({
         ? [selectedMistakeId]
         : [];
 
+      let calcPnlR = 0;
+      if (outcome === 'TP') {
+        calcPnlR = parsedRr;
+      } else if (outcome === 'SL') {
+        calcPnlR = -1;
+      } else {
+        calcPnlR = 0;
+      }
+      const calcPnlPercent = Number((calcPnlR * parsedRisk).toFixed(4));
+
       const payload = {
         symbol,
         direction: direction.toUpperCase(),
@@ -392,6 +402,8 @@ export function TradeModal({
         session,
         risk_percent: parsedRisk,
         rr: parsedRr,
+        pnl_r: calcPnlR,
+        pnl_percent: calcPnlPercent,
         setup_id: setupId || null,
         mistake_ids: mistakeIdsArray,
         account_id: accountId || null,

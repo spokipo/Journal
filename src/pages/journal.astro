@@ -4,8 +4,8 @@ import { AppLayout } from '../components/AppLayout';
 import { JournalView } from '../components/journal/JournalView';
 ---
 
-<Layout title="Trading Journal">
-  <AppLayout activeTab="journal" client:load>
-    <JournalView client:only="react" />
+<Layout title="Trading Journal" activeTab="journal">
+  <AppLayout activeTab="journal">
+    <JournalView client:load />
   </AppLayout>
 </Layout>

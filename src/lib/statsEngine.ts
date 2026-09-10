@@ -35,14 +35,14 @@ export interface RawTrade {
 }
 
 export interface EnrichedTrade extends RawTrade {
-  account_name: string;
-  account_currency: string;
-  account_balance_before: number;
-  account_balance_after: number;
-  risk_amount: number;
+  account_name?: string;
+  account_currency?: string;
+  account_balance_before?: number | null;
+  account_balance_after?: number | null;
+  risk_amount?: number | null;
   pnl_r: number;
   pnl_percent: number;
-  pnl_amount: number;
+  pnl_amount?: number | null;
 }
 
 export type PeriodType = 'all' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
@@ -71,11 +71,11 @@ export interface EquityPoint {
   direction: 'LONG' | 'SHORT';
   outcome: 'TP' | 'SL' | 'BE';
   pnlR: number;
-  pnlAmount: number;
+  pnlAmount?: number | null;
   cumulativeR: number;
-  cumulativeAmount: number;
-  totalBalance: number;
-  accountName: string;
+  cumulativeAmount?: number | null;
+  totalBalance?: number | null;
+  accountName?: string;
 }
 
 export interface BreakdownMetric {
@@ -87,7 +87,7 @@ export interface BreakdownMetric {
   beCount: number;
   winRate: number;
   netR: number;
-  netAmount: number;
+  netAmount: number | null;
   profitFactor: number;
 }
 
@@ -95,12 +95,13 @@ export interface DailyPnlItem {
   date: string; // YYYY-MM-DD
   tradesCount: number;
   netR: number;
-  netAmount: number;
+  netAmount: number | null;
   winCount: number;
   lossCount: number;
 }
 
 export interface StatsSummary {
+  hasMonetaryStats: boolean;
   totalTrades: number;
   winCount: number;
   lossCount: number;
@@ -119,15 +120,15 @@ export interface StatsSummary {
   winLossRatioR: number;
   maxDrawdownR: number;
 
-  netAmount: number;
-  grossWinAmount: number;
-  grossLossAmount: number;
-  profitFactorAmount: number;
-  expectancyAmount: number; // avg $ per trade
-  avgWinAmount: number;
-  avgLossAmount: number;
-  maxDrawdownAmount: number;
-  maxDrawdownPercent: number;
+  netAmount: number | null;
+  grossWinAmount: number | null;
+  grossLossAmount: number | null;
+  profitFactorAmount: number | null;
+  expectancyAmount: number | null; // avg $ per trade
+  avgWinAmount: number | null;
+  avgLossAmount: number | null;
+  maxDrawdownAmount: number | null;
+  maxDrawdownPercent: number | null;
 
   maxConsecutiveWins: number;
   maxConsecutiveLosses: number;
@@ -154,92 +155,144 @@ export function enrichTradesWithHistoricalData(
   if (!trades || trades.length === 0) return [];
 
   const accountMap = new Map<string, TradingAccount>();
-  accounts.forEach((acc) => accountMap.set(acc.id, acc));
+  accounts.forEach((acc) => accountMap.set(String(acc.id), acc));
 
-  // Find fallback/default account if trade is unassigned
-  const defaultAccount: TradingAccount = accounts.find((a) => a.is_default) || accounts[0] || {
-    id: 'default',
-    name: 'Default Account',
-    scope: 'personal',
-    currency: 'USD',
-    balance: 10000,
-    initial_balance: 10000,
-  };
-
-  // Group trades by account
+  // Group trades by valid account; separate trades without an account
   const tradesByAccount = new Map<string, RawTrade[]>();
+  const unassignedTrades: RawTrade[] = [];
+
   trades.forEach((trade) => {
-    const accId = trade.account_id || defaultAccount.id;
-    const existing = tradesByAccount.get(accId) || [];
-    existing.push(trade);
-    tradesByAccount.set(accId, existing);
+    const accId = trade.account_id ? String(trade.account_id) : null;
+    if (accId && accountMap.has(accId)) {
+      const existing = tradesByAccount.get(accId) || [];
+      existing.push(trade);
+      tradesByAccount.set(accId, existing);
+    } else {
+      unassignedTrades.push(trade);
+    }
   });
 
   const enrichedList: EnrichedTrade[] = [];
 
+  // Helper to calculate normalized R
+  const getNormalizedR = (trade: RawTrade): number => {
+    if (trade.pnl_r !== null && trade.pnl_r !== undefined && Number(trade.pnl_r) !== 0) {
+      return Number(trade.pnl_r);
+    } else if (trade.outcome === 'TP') {
+      const rr = Number(trade.rr || 0);
+      return rr > 0 ? rr : (Number(trade.pnl_r) || 2.0);
+    } else if (trade.outcome === 'SL') {
+      const rr = trade.rr !== null && trade.rr !== undefined ? Number(trade.rr) : -1.0;
+      return rr < 0 ? rr : -1.0;
+    }
+    return 0.0;
+  };
+
+  // 1. Process trades for each real account independently
   tradesByAccount.forEach((accTrades, accId) => {
-    const account = accountMap.get(accId) || defaultAccount;
-    // Initial starting balance
+    const account = accountMap.get(accId)!;
     const startingBalance = Number(
-      account.initial_balance !== undefined && account.initial_balance !== null && account.initial_balance > 0
+      account.initial_balance !== undefined && account.initial_balance !== null && Number(account.initial_balance) > 0
         ? account.initial_balance
-        : account.balance > 0 ? account.balance : 10000
+        : account.balance !== undefined && account.balance !== null && Number(account.balance) > 0
+        ? account.balance
+        : 0
     );
 
-    // Sort strictly chronological ascending for sequential balance computation
     const sortedTrades = [...accTrades].sort(
       (a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime()
     );
 
     let rollingBalance = startingBalance;
+    const canCalculateDollars = startingBalance > 0;
 
     sortedTrades.forEach((trade) => {
-      // Calculate normalized R
-      let r = 0;
-      if (trade.pnl_r !== null && trade.pnl_r !== undefined) {
-        r = Number(trade.pnl_r);
-      } else if (trade.outcome === 'TP') {
-        r = Number(trade.rr || 0);
-      } else if (trade.outcome === 'SL') {
-        r = trade.rr !== null && trade.rr !== undefined && trade.rr < 0 ? Number(trade.rr) : -1.0;
-      } else {
-        r = 0.0;
-      }
-
+      const r = getNormalizedR(trade);
       const riskPct = Number(trade.risk_percent || 1.0);
-      const balanceBefore = rollingBalance;
-      const riskAmount = (balanceBefore * riskPct) / 100;
 
-      // Calculate PnL percent
       let pnlPct = 0;
-      if (trade.pnl_percent !== null && trade.pnl_percent !== undefined) {
+      if (
+        trade.pnl_percent !== null &&
+        trade.pnl_percent !== undefined &&
+        (Number(trade.pnl_percent) !== 0 || trade.outcome === 'BE')
+      ) {
         pnlPct = Number(trade.pnl_percent);
       } else {
         pnlPct = Number((r * riskPct).toFixed(4));
       }
 
-      // Monetary result based on historical balance at time of trade
-      let pnlAmount = 0;
-      if (trade.pnl_percent !== null && trade.pnl_percent !== undefined) {
-        pnlAmount = Number(((balanceBefore * Number(trade.pnl_percent)) / 100).toFixed(2));
+      if (canCalculateDollars) {
+        const balanceBefore = rollingBalance;
+        const riskAmount = (balanceBefore * riskPct) / 100;
+
+        let pnlAmount = 0;
+        if (
+          trade.pnl_percent !== null &&
+          trade.pnl_percent !== undefined &&
+          (Number(trade.pnl_percent) !== 0 || trade.outcome === 'BE')
+        ) {
+          pnlAmount = Number(((balanceBefore * Number(trade.pnl_percent)) / 100).toFixed(2));
+        } else {
+          pnlAmount = Number((riskAmount * r).toFixed(2));
+        }
+        const balanceAfter = Number((balanceBefore + pnlAmount).toFixed(2));
+        rollingBalance = balanceAfter;
+
+        enrichedList.push({
+          ...trade,
+          account_name: account.name,
+          account_currency: account.currency || 'USD',
+          account_balance_before: balanceBefore,
+          account_balance_after: balanceAfter,
+          risk_amount: riskAmount,
+          pnl_r: r,
+          pnl_percent: pnlPct,
+          pnl_amount: pnlAmount,
+        });
       } else {
-        pnlAmount = Number((riskAmount * r).toFixed(2));
+        // Account has zero/missing balance: cannot calculate dollar amounts
+        enrichedList.push({
+          ...trade,
+          account_name: account.name,
+          account_currency: account.currency || 'USD',
+          account_balance_before: null,
+          account_balance_after: null,
+          risk_amount: null,
+          pnl_r: r,
+          pnl_percent: pnlPct,
+          pnl_amount: null,
+        });
       }
-      const balanceAfter = Number((balanceBefore + pnlAmount).toFixed(2));
+    });
+  });
 
-      rollingBalance = balanceAfter;
+  // 2. Process unassigned trades (trades with NO account)
+  // If there is no account, we cannot calculate PnL in dollars!
+  unassignedTrades.forEach((trade) => {
+    const r = getNormalizedR(trade);
+    const riskPct = Number(trade.risk_percent || 1.0);
 
-      enrichedList.push({
-        ...trade,
-        account_name: account.name,
-        account_currency: account.currency || 'USD',
-        account_balance_before: balanceBefore,
-        account_balance_after: balanceAfter,
-        risk_amount: riskAmount,
-        pnl_r: r,
-        pnl_percent: pnlPct,
-        pnl_amount: pnlAmount,
-      });
+    let pnlPct = 0;
+    if (
+      trade.pnl_percent !== null &&
+      trade.pnl_percent !== undefined &&
+      (Number(trade.pnl_percent) !== 0 || trade.outcome === 'BE')
+    ) {
+      pnlPct = Number(trade.pnl_percent);
+    } else {
+      pnlPct = Number((r * riskPct).toFixed(4));
+    }
+
+    enrichedList.push({
+      ...trade,
+      account_name: undefined,
+      account_currency: undefined,
+      account_balance_before: null,
+      account_balance_after: null,
+      risk_amount: null,
+      pnl_r: r,
+      pnl_percent: pnlPct,
+      pnl_amount: null,
     });
   });
 
@@ -313,8 +366,8 @@ export function filterTrades(trades: EnrichedTrade[], filters: FilterState): Enr
 
     // Account filter ('all' includes all accounts; specific id filters to that account)
     if (filters.accountId && filters.accountId !== 'all') {
-      const accId = trade.account_id || 'default';
-      if (accId !== filters.accountId) return false;
+      const accId = trade.account_id ? String(trade.account_id) : 'default';
+      if (accId !== String(filters.accountId)) return false;
     }
 
     // Search query filter (symbol or notes)
@@ -346,9 +399,9 @@ export function sortTrades(trades: EnrichedTrade[], sortBy: SortOption): Enriche
     case 'pnl_r_asc':
       return list.sort((a, b) => a.pnl_r - b.pnl_r);
     case 'pnl_amt_desc':
-      return list.sort((a, b) => b.pnl_amount - a.pnl_amount);
+      return list.sort((a, b) => (b.pnl_amount ?? -Infinity) - (a.pnl_amount ?? -Infinity));
     case 'pnl_amt_asc':
-      return list.sort((a, b) => a.pnl_amount - b.pnl_amount);
+      return list.sort((a, b) => (a.pnl_amount ?? Infinity) - (b.pnl_amount ?? Infinity));
     case 'symbol_asc':
       return list.sort((a, b) => a.symbol.localeCompare(b.symbol));
     case 'symbol_desc':
@@ -370,7 +423,9 @@ export function calculateStatistics(
   const total = filteredTrades.length;
 
   if (total === 0) {
+    const hasMoney = startingAccountsBalance > 0;
     return {
+      hasMonetaryStats: hasMoney,
       totalTrades: 0,
       winCount: 0,
       lossCount: 0,
@@ -387,18 +442,29 @@ export function calculateStatistics(
       avgLossR: 0,
       winLossRatioR: 0,
       maxDrawdownR: 0,
-      netAmount: 0,
-      grossWinAmount: 0,
-      grossLossAmount: 0,
-      profitFactorAmount: 0,
-      expectancyAmount: 0,
-      avgWinAmount: 0,
-      avgLossAmount: 0,
-      maxDrawdownAmount: 0,
-      maxDrawdownPercent: 0,
+      netAmount: hasMoney ? 0 : null,
+      grossWinAmount: hasMoney ? 0 : null,
+      grossLossAmount: hasMoney ? 0 : null,
+      profitFactorAmount: hasMoney ? 0 : null,
+      expectancyAmount: hasMoney ? 0 : null,
+      avgWinAmount: hasMoney ? 0 : null,
+      avgLossAmount: hasMoney ? 0 : null,
+      maxDrawdownAmount: hasMoney ? 0 : null,
+      maxDrawdownPercent: hasMoney ? 0 : null,
       maxConsecutiveWins: 0,
       maxConsecutiveLosses: 0,
-      equityCurve: [],
+      equityCurve: hasMoney ? [{
+        tradeId: 'initial',
+        date: new Date().toISOString(),
+        symbol: 'Start',
+        direction: 'LONG',
+        outcome: 'BE',
+        pnlR: 0,
+        pnlAmount: 0,
+        cumulativeR: 0,
+        cumulativeAmount: 0,
+        totalBalance: startingAccountsBalance,
+      }] : [],
       dailyPnl: [],
       bySession: [],
       byDirection: [],
@@ -406,6 +472,9 @@ export function calculateStatistics(
       byMistake: [],
     };
   }
+
+  // Can calculate monetary stats if trades have monetary pnl_amount or starting balance > 0
+  const hasMonetaryStats = filteredTrades.some((t) => t.pnl_amount !== null && t.pnl_amount !== undefined) || startingAccountsBalance > 0;
 
   // Trades ordered chronologically for equity curve and drawdown
   const chronologicalTrades = [...filteredTrades].sort(
@@ -434,7 +503,7 @@ export function calculateStatistics(
 
   let cumulativeR = 0;
   let cumulativeAmount = 0;
-  let rollingBalance = startingAccountsBalance > 0 ? startingAccountsBalance : 10000;
+  let rollingBalance = hasMonetaryStats ? startingAccountsBalance : 0;
   let peakBalance = rollingBalance;
   let maxDrawdownAmount = 0;
   let maxDrawdownPercent = 0;
@@ -478,25 +547,27 @@ export function calculateStatistics(
       maxDrawdownR = currentDdR;
     }
 
-    // Monetary metrics
-    const amt = t.pnl_amount;
-    netAmount += amt;
-    if (amt > 0) grossWinAmount += amt;
-    if (amt < 0) grossLossAmount += Math.abs(amt);
+    // Monetary metrics (only if hasMonetaryStats)
+    const amt = t.pnl_amount ?? 0;
+    if (hasMonetaryStats) {
+      netAmount += amt;
+      if (amt > 0) grossWinAmount += amt;
+      if (amt < 0) grossLossAmount += Math.abs(amt);
 
-    cumulativeAmount += amt;
-    rollingBalance += amt;
+      cumulativeAmount += amt;
+      rollingBalance += amt;
 
-    if (rollingBalance > peakBalance) {
-      peakBalance = rollingBalance;
-    }
-    const currentDdAmt = peakBalance - rollingBalance;
-    if (currentDdAmt > maxDrawdownAmount) {
-      maxDrawdownAmount = currentDdAmt;
-    }
-    const currentDdPct = peakBalance > 0 ? (currentDdAmt / peakBalance) * 100 : 0;
-    if (currentDdPct > maxDrawdownPercent) {
-      maxDrawdownPercent = currentDdPct;
+      if (rollingBalance > peakBalance) {
+        peakBalance = rollingBalance;
+      }
+      const currentDdAmt = peakBalance - rollingBalance;
+      if (currentDdAmt > maxDrawdownAmount) {
+        maxDrawdownAmount = currentDdAmt;
+      }
+      const currentDdPct = peakBalance > 0 ? (currentDdAmt / peakBalance) * 100 : 0;
+      if (currentDdPct > maxDrawdownPercent) {
+        maxDrawdownPercent = currentDdPct;
+      }
     }
 
     equityCurve.push({
@@ -506,10 +577,10 @@ export function calculateStatistics(
       direction: t.direction,
       outcome: t.outcome,
       pnlR: Number(r.toFixed(2)),
-      pnlAmount: Number(amt.toFixed(2)),
+      pnlAmount: t.pnl_amount !== null && t.pnl_amount !== undefined ? Number(t.pnl_amount.toFixed(2)) : null,
       cumulativeR: Number(cumulativeR.toFixed(2)),
-      cumulativeAmount: Number(cumulativeAmount.toFixed(2)),
-      totalBalance: Number(rollingBalance.toFixed(2)),
+      cumulativeAmount: hasMonetaryStats ? Number(cumulativeAmount.toFixed(2)) : null,
+      totalBalance: hasMonetaryStats ? Number(rollingBalance.toFixed(2)) : null,
       accountName: t.account_name,
     });
 
@@ -519,13 +590,15 @@ export function calculateStatistics(
       date: dayKey,
       tradesCount: 0,
       netR: 0,
-      netAmount: 0,
+      netAmount: hasMonetaryStats ? 0 : null,
       winCount: 0,
       lossCount: 0,
     };
     existingDay.tradesCount++;
     existingDay.netR += r;
-    existingDay.netAmount += amt;
+    if (amt !== null && amt !== undefined) {
+      existingDay.netAmount = (existingDay.netAmount ?? 0) + amt;
+    }
     if (isWin) existingDay.winCount++;
     if (isLoss) existingDay.lossCount++;
     dailyMap.set(dayKey, existingDay);
@@ -536,17 +609,22 @@ export function calculateStatistics(
   const beRate = Number(((beCount / total) * 100).toFixed(1));
 
   const profitFactorR = grossLossR === 0 ? Number(grossWinR.toFixed(2)) : Number((grossWinR / grossLossR).toFixed(2));
-  const profitFactorAmount = grossLossAmount === 0 ? Number(grossWinAmount.toFixed(2)) : Number((grossWinAmount / grossLossAmount).toFixed(2));
-
   const expectancyR = Number((netR / total).toFixed(2));
-  const expectancyAmount = Number((netAmount / total).toFixed(2));
-
   const avgWinR = winCount > 0 ? Number((grossWinR / winCount).toFixed(2)) : 0;
   const avgLossR = lossCount > 0 ? Number((grossLossR / lossCount).toFixed(2)) : 0;
   const winLossRatioR = avgLossR > 0 ? Number((avgWinR / avgLossR).toFixed(2)) : avgWinR;
 
-  const avgWinAmount = winCount > 0 ? Number((grossWinAmount / winCount).toFixed(2)) : 0;
-  const avgLossAmount = lossCount > 0 ? Number((grossLossAmount / lossCount).toFixed(2)) : 0;
+  let profitFactorAmount: number | null = null;
+  let expectancyAmount: number | null = null;
+  let avgWinAmount: number | null = null;
+  let avgLossAmount: number | null = null;
+
+  if (hasMonetaryStats) {
+    profitFactorAmount = grossLossAmount === 0 ? Number(grossWinAmount.toFixed(2)) : Number((grossWinAmount / grossLossAmount).toFixed(2));
+    expectancyAmount = Number((netAmount / total).toFixed(2));
+    avgWinAmount = winCount > 0 ? Number((grossWinAmount / winCount).toFixed(2)) : 0;
+    avgLossAmount = lossCount > 0 ? Number((grossLossAmount / lossCount).toFixed(2)) : 0;
+  }
 
   // Breakdown generators
   const buildBreakdowns = (
@@ -570,7 +648,10 @@ export function calculateStatistics(
       const losses = val.trades.filter((t) => t.outcome === 'SL').length;
       const bes = val.trades.filter((t) => t.outcome === 'BE').length;
       const nR = val.trades.reduce((acc, t) => acc + t.pnl_r, 0);
-      const nAmt = val.trades.reduce((acc, t) => acc + t.pnl_amount, 0);
+      const tradesWithAmt = val.trades.filter((t) => t.pnl_amount !== null && t.pnl_amount !== undefined);
+      const nAmt = hasMonetaryStats && tradesWithAmt.length > 0
+        ? tradesWithAmt.reduce((acc, t) => acc + (t.pnl_amount ?? 0), 0)
+        : null;
       const gWinR = val.trades.filter((t) => t.pnl_r > 0).reduce((acc, t) => acc + t.pnl_r, 0);
       const gLossR = Math.abs(val.trades.filter((t) => t.pnl_r < 0).reduce((acc, t) => acc + t.pnl_r, 0));
       const pf = gLossR === 0 ? Number(gWinR.toFixed(2)) : Number((gWinR / gLossR).toFixed(2));
@@ -584,7 +665,7 @@ export function calculateStatistics(
         beCount: bes,
         winRate: count > 0 ? Math.round((wins / count) * 100) : 0,
         netR: Number(nR.toFixed(2)),
-        netAmount: Number(nAmt.toFixed(2)),
+        netAmount: nAmt !== null ? Number(nAmt.toFixed(2)) : null,
         profitFactor: pf,
       });
     });
@@ -628,6 +709,7 @@ export function calculateStatistics(
   );
 
   return {
+    hasMonetaryStats,
     totalTrades: total,
     winCount,
     lossCount,

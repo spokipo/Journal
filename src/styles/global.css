@@ -237,3 +237,60 @@ input[type=number] {
   border-top: 1px solid var(--border-color);
   margin: 1.5rem 0;
 }
+
+/* Изоляция оболочки: корневой фон, сайдбар и мобильный таб бар остаются 100% статичными */
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(desktop-sidebar),
+::view-transition-old(desktop-sidebar),
+::view-transition-new(desktop-sidebar),
+::view-transition-group(mobile-tabbar),
+::view-transition-old(mobile-tabbar),
+::view-transition-new(mobile-tabbar) {
+  animation: none !important;
+}
+
+/* Плавные переходы страниц по design.md (длительность 0.15–0.24s, easing [0.16, 1, 0.3, 1]) */
+::view-transition-group(page-content) {
+  animation-duration: 0.22s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+::view-transition-old(page-content) {
+  animation: 0.15s cubic-bezier(0.16, 1, 0.3, 1) both page-fade-out !important;
+}
+
+::view-transition-new(page-content) {
+  animation: 0.22s cubic-bezier(0.16, 1, 0.3, 1) both page-fade-in !important;
+}
+
+@keyframes page-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.996);
+  }
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content),
+  ::view-transition-group(page-content) {
+    animation: none !important;
+  }
+}
