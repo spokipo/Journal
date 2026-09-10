@@ -25,6 +25,7 @@ import { AuthModal } from './Modals';
 import { TradeModal } from './trade/TradeModal';
 import { IdeaModal } from './trade/IdeaModal';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { Link, useLocation } from 'wouter';
 
 const TABS = [
   { id: 'dashboard', icon: LayoutDashboard, href: '/', label: 'Dashboard' },
@@ -42,40 +43,19 @@ const MENU_ITEMS = [
   { id: 'settings', icon: Settings, label: 'Settings', href: '/settings' },
 ];
 
-const getTabFromPath = (path: string, fallback: string) => {
-  if (path === '/') return 'dashboard';
-  if (path.startsWith('/journal')) return 'journal';
-  if (path.startsWith('/stats')) return 'stats';
-  if (path.startsWith('/playbook') || path.startsWith('/system') || path.startsWith('/settings')) return 'menu';
-  return fallback;
+const getTabFromPath = (path: string) => {
+  const cleanPath = path.replace(/\/$/, '') || '/';
+  if (cleanPath === '/') return 'dashboard';
+  if (cleanPath.startsWith('/journal')) return 'journal';
+  if (cleanPath.startsWith('/stats')) return 'stats';
+  if (cleanPath.startsWith('/playbook') || cleanPath.startsWith('/system') || cleanPath.startsWith('/settings')) return 'menu';
+  return 'dashboard';
 };
 
-export function MobileTabBar({ activeTab }: { activeTab: string }) {
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+export function MobileTabBar({ activeTab }: { activeTab?: string }) {
   const { theme, toggleTheme } = useTheme();
-
-  const [selectedTab, setSelectedTab] = useState(activeTab);
-
-  // Синхронизация с переходами Astro через ClientRouter
-  useEffect(() => {
-    const syncTab = () => {
-      if (typeof window !== 'undefined') {
-        setSelectedTab(getTabFromPath(window.location.pathname, activeTab));
-      }
-    };
-
-    syncTab();
-    document.addEventListener('astro:after-swap', syncTab);
-    document.addEventListener('astro:page-load', syncTab);
-    window.addEventListener('popstate', syncTab);
-
-    return () => {
-      document.removeEventListener('astro:after-swap', syncTab);
-      document.removeEventListener('astro:page-load', syncTab);
-      window.removeEventListener('popstate', syncTab);
-    };
-  }, [activeTab]);
+  const [location, setLocation] = useLocation();
+  const selectedTab = getTabFromPath(location);
 
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -123,28 +103,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
     : 'Trader Pro';
   const avatarInitial = (displayName[0] || 'T').toUpperCase();
 
-  useEffect(() => {
-    const mainEl = document.getElementById('main-scroll-container') || window;
 
-    const handleScroll = () => {
-      if (isMobileMenuOpen) {
-        setIsVisible(true);
-        return;
-      }
-      const currentScrollY = mainEl instanceof HTMLElement ? mainEl.scrollTop : window.scrollY;
-      
-      if (currentScrollY > lastScrollY && currentScrollY > 60) {
-        setIsVisible(false);
-        setShowAddMenu(false);
-      } else {
-        setIsVisible(true);
-      }
-      setLastScrollY(currentScrollY);
-    };
-
-    mainEl.addEventListener('scroll', handleScroll, { passive: true });
-    return () => mainEl.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY, isMobileMenuOpen]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -197,21 +156,14 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
               <a 
                 href={user ? "/settings?section=profile" : "#"}
                 onClick={(e) => {
+                  e.preventDefault();
                   setIsMobileMenuOpen(false);
                   if (!user) {
-                    e.preventDefault();
                     setAuthModalOpen(true);
                     return;
                   }
-                  if (typeof window !== 'undefined' && window.location.pathname === '/settings') {
-                    e.preventDefault();
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('section', 'profile');
-                    window.history.pushState({ section: 'profile' }, '', url.toString());
-                    window.dispatchEvent(new PopStateEvent('popstate'));
-                  }
+                  setLocation('/settings?section=profile');
                 }}
-                data-astro-prefetch="hover"
                 className="w-full p-4 flex items-center bg-card border border-border-card rounded-[26px] shadow-sm transition-all cursor-pointer active:scale-[0.98] group"
               >
                 <div className="w-11 h-11 rounded-full bg-blue-500/10 shrink-0 flex items-center justify-center text-blue-500 font-bold text-base border border-blue-500/20 relative overflow-hidden">
@@ -246,13 +198,14 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                 </div>
                 <div className="bg-card border border-border-card rounded-[26px] p-2 space-y-1 shadow-sm">
                   {MENU_ITEMS.map((item) => {
-                    const isActive = (isMobileMenuOpen ? (typeof window !== 'undefined' && (item.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(item.href))) : activeTab === item.id);
+                    const isActive = item.href === '/' ? location === '/' : location.startsWith(item.href);
                     return (
-                      <a
+                      <Link
                         key={item.id}
                         href={item.href}
-                        data-astro-prefetch="hover"
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                        }}
                         className={cn(
                           "w-full min-h-11 px-3.5 flex items-center rounded-[18px] transition-all active:scale-[0.98] outline-none",
                           isActive 
@@ -270,7 +223,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                         {isActive && (
                           <div className="ml-auto w-2 h-2 rounded-full bg-blue-500" />
                         )}
-                      </a>
+                      </Link>
                     );
                   })}
                 </div>
@@ -377,10 +330,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
       </AnimatePresence>
 
       <LayoutGroup id="mobile-tabbar-root">
-        <motion.div 
-          initial={false}
-          animate={{ y: isVisible && !isAnyModalOpen ? 0 : 120 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        <div 
           className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-3 sm:px-4 pb-[max(env(safe-area-inset-bottom,0px),12px)] pointer-events-none flex items-center justify-between gap-3"
         >
           <nav 
@@ -410,6 +360,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                     {isActive && (
                       <motion.div
                         layoutId="mobile-tabbar-capsule"
+                        initial={false}
                         transition={{ type: 'spring', stiffness: 480, damping: 34 }}
                         className="absolute inset-0 rounded-full bg-canvas border border-border-card shadow-sm"
                       />
@@ -426,12 +377,10 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
               }
 
               return (
-                <a
+                <Link
                   key={tab.id}
                   href={tab.href}
-                  data-astro-prefetch="hover"
                   onClick={() => {
-                    setSelectedTab(tab.id);
                     if (isMobileMenuOpen) setIsMobileMenuOpen(false);
                   }}
                   className={cn(
@@ -443,6 +392,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                   {isActive && (
                     <motion.div
                       layoutId="mobile-tabbar-capsule"
+                      initial={false}
                       transition={{ type: 'spring', stiffness: 480, damping: 34 }}
                       className="absolute inset-0 rounded-full bg-canvas border border-border-card shadow-sm"
                     />
@@ -454,7 +404,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
                   >
                     <Icon size={22} />
                   </motion.div>
-                </a>
+                </Link>
               );
             })}
           </nav>
@@ -481,7 +431,7 @@ export function MobileTabBar({ activeTab }: { activeTab: string }) {
               />
             </button>
           </div>
-        </motion.div>
+        </div>
       </LayoutGroup>
 
       <TradeModal isOpen={isTradeModalOpen} onClose={() => setTradeModalOpen(false)} user={user} />

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, Sun, Moon, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useTheme } from '../lib/useTheme';
+import { useLocation } from 'wouter';
 
 type AuthMode = 'login' | 'signup';
 
@@ -13,6 +14,7 @@ interface AuthScreenProps {
 }
 
 export function AuthScreen({ onToggleTheme, onSuccess, isModal = false }: AuthScreenProps) {
+  const [, setLocation] = useLocation();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,10 +28,10 @@ export function AuthScreen({ onToggleTheme, onSuccess, isModal = false }: AuthSc
     if (!isSupabaseConfigured || isModal) return;
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        window.location.href = '/';
+        setLocation('/');
       }
     });
-  }, [isModal]);
+  }, [isModal, setLocation]);
 
   // Hook for current theme state and fallback toggle
   const { theme, toggleTheme: localToggleTheme } = useTheme();
@@ -72,7 +74,7 @@ export function AuthScreen({ onToggleTheme, onSuccess, isModal = false }: AuthSc
         if (onSuccess) {
           onSuccess();
         } else {
-          window.location.href = '/';
+          setLocation('/');
         }
       } else {
         const { error } = await supabase.auth.signUp({
@@ -93,7 +95,7 @@ export function AuthScreen({ onToggleTheme, onSuccess, isModal = false }: AuthSc
         } else {
           supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) {
-              window.location.href = '/';
+              setLocation('/');
             }
           });
         }

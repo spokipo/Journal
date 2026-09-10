@@ -22,6 +22,7 @@ import { TradeModal } from './trade/TradeModal';
 import { IdeaModal, type IdeaPayload } from './trade/IdeaModal';
 import { AuthModal } from './Modals';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { Link, useLocation } from 'wouter';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard', href: '/' },
@@ -32,19 +33,22 @@ const NAV_ITEMS = [
   { icon: Settings, label: 'Settings', id: 'settings', href: '/settings' },
 ];
 
-const getTabFromPath = (path: string, fallback: string) => {
-  if (path === '/') return 'dashboard';
-  if (path.startsWith('/journal')) return 'journal';
-  if (path.startsWith('/playbook')) return 'playbook';
-  if (path.startsWith('/system')) return 'system';
-  if (path.startsWith('/stats')) return 'stats';
-  if (path.startsWith('/settings')) return 'settings';
-  return fallback;
+const getTabFromPath = (path: string) => {
+  const cleanPath = path.replace(/\/$/, '') || '/';
+  if (cleanPath === '/') return 'dashboard';
+  if (cleanPath.startsWith('/journal')) return 'journal';
+  if (cleanPath.startsWith('/playbook')) return 'playbook';
+  if (cleanPath.startsWith('/system')) return 'system';
+  if (cleanPath.startsWith('/stats')) return 'stats';
+  if (cleanPath.startsWith('/settings')) return 'settings';
+  return 'dashboard';
 };
 
-export function Sidebar({ activeTab }: { activeTab: string }) {
+export function Sidebar({ activeTab }: { activeTab?: string }) {
   // Стартуем одинаково на сервере и клиенте во избежание Hydration mismatch
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [location, setLocation] = useLocation();
+  const selectedTab = getTabFromPath(location);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -64,27 +68,6 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
   };
 
   const { theme, toggleTheme } = useTheme();
-  const [selectedTab, setSelectedTab] = useState(activeTab);
-
-  // Синхронизация с переходами Astro через ClientRouter
-  useEffect(() => {
-    const syncTab = () => {
-      if (typeof window !== 'undefined') {
-        setSelectedTab(getTabFromPath(window.location.pathname, activeTab));
-      }
-    };
-
-    syncTab();
-    document.addEventListener('astro:after-swap', syncTab);
-    document.addEventListener('astro:page-load', syncTab);
-    window.addEventListener('popstate', syncTab);
-
-    return () => {
-      document.removeEventListener('astro:after-swap', syncTab);
-      document.removeEventListener('astro:page-load', syncTab);
-      window.removeEventListener('popstate', syncTab);
-    };
-  }, [activeTab]);
 
   // Auth state
   const [user, setUser] = useState<any>(null);
@@ -144,13 +127,8 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
       setAuthModalOpen(true);
       return;
     }
-    if (typeof window !== 'undefined' && window.location.pathname === '/settings') {
-      e.preventDefault();
-      const url = new URL(window.location.href);
-      url.searchParams.set('section', 'profile');
-      window.history.pushState({ section: 'profile' }, '', url.toString());
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    }
+    e.preventDefault();
+    setLocation('/settings?section=profile');
   };
 
   const displayName = user
@@ -189,7 +167,6 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
             <a 
               href={user ? "/settings?section=profile" : "#"}
               onClick={handleProfileClick}
-              data-astro-prefetch="hover"
               className={cn(
                 "w-full h-11 flex items-center rounded-[18px] hover:bg-canvas transition-colors cursor-pointer group relative outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20",
                 isCollapsed ? "justify-center px-0" : "px-2"
@@ -246,11 +223,9 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
               const Icon = item.icon;
 
               return (
-                <a
+                <Link
                   key={item.id}
                   href={item.href}
-                  data-astro-prefetch="hover"
-                  onClick={() => setSelectedTab(item.id)}
                   className={cn(
                     "relative w-full h-11 flex items-center rounded-[18px] transition-colors outline-none group select-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-blue-500/20",
                     isCollapsed ? "justify-center px-0" : "px-2.5",
@@ -261,6 +236,7 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
                   {isActive && (
                     <motion.div
                       layoutId="desktop-sidebar-active-indicator"
+                      initial={false}
                       transition={{ type: 'spring', stiffness: 480, damping: 34 }}
                       className="absolute inset-0 rounded-[18px] bg-canvas border border-border-card/80 shadow-sm"
                     />
@@ -298,7 +274,7 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
                       {item.label}
                     </div>
                   )}
-                </a>
+                </Link>
               );
             })}
           </div>
