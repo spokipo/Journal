@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -6,20 +6,17 @@ import {
   LayoutGrid, 
   List, 
   ArrowUpDown, 
-  MoreVertical, 
-  Edit3, 
-  Trash2, 
   BookMarked, 
-  CheckCircle2, 
-  XCircle, 
   X, 
-  Loader2, 
   Image as ImageIcon,
-  ZoomIn,
-  ChevronDown
+  AlertTriangle,
+  RotateCcw,
+  SlidersHorizontal,
+  Check
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { Select, type SelectOption } from '../ui/Select';
 import { PlaybookModal } from './PlaybookModal';
 import { ImageViewerModal } from '../ui/ImageViewerModal';
 
@@ -35,31 +32,123 @@ export interface PlaybookSetup {
   created_at?: string;
 }
 
-type SortOption = 'winrate_desc' | 'trades_desc' | 'title_asc';
+type SortOption = 'winrate_desc' | 'winrate_asc' | 'trades_desc' | 'title_asc';
+type StatusFilter = 'all' | 'active' | 'inactive';
 type ViewMode = 'grid' | 'list';
 
-const SORT_LABELS: Record<SortOption, string> = {
-  winrate_desc: 'Win Rate (High-Low)',
-  trades_desc: 'Trades (High-Low)',
-  title_asc: 'Name (A-Z)',
-};
+const SORT_SELECT_OPTIONS: SelectOption[] = [
+  { value: 'winrate_desc', label: 'Win Rate: High-Low' },
+  { value: 'winrate_asc', label: 'Win Rate: Low-High' },
+  { value: 'trades_desc', label: 'Trades: Most first' },
+  { value: 'title_asc', label: 'Name: A-Z' },
+];
+
+const STATUS_SELECT_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'active', label: 'Active Only' },
+  { value: 'inactive', label: 'Inactive Only' },
+];
 
 export function PlaybookView() {
   const [setups, setSetups] = useState<PlaybookSetup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const [user, setUser] = useState<any>(null);
 
+  // Фильтры, сортировка и отображение
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('winrate_desc');
-  const [isSortOpen, setIsSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
+  // Мобильный anchored popover для фильтров и сортировки
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const mobileFilterRef = useRef<HTMLDivElement>(null);
+
+  // Модальные окна
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSetup, setEditingSetup] = useState<PlaybookSetup | null>(null);
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  const sortRef = useRef<HTMLDivElement>(null);
+  // Галерея скриншотов (полная совместимость с ImageViewerModal)
+  const [viewerState, setViewerState] = useState<{
+    isOpen: boolean;
+    images: string[];
+    index: number;
+    title?: string;
+  }>({
+    isOpen: false,
+    images: [],
+    index: 0,
+  });
+
+  const fetchSetups = useCallback(async (userId: string) => {
+    if (!isSupabaseConfigured) return;
+    setIsLoading(true);
+    setHasError(false);
+    try {
+      const [playbooksRes, tradesRes] = await Promise.all([
+        supabase
+          .from('playbooks')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('trades')
+          .select('id, setup_id, outcome, pnl_r')
+          .eq('user_id', userId),
+      ]);
+
+      if (playbooksRes.error) throw playbooksRes.error;
+
+      const rawSetups = (playbooksRes.data as PlaybookSetup[]) || [];
+      const trades = tradesRes.data || [];
+
+      // Группируем сделки по setup_id для расчета реального винрейта и количества сделок
+      const tradesBySetup = new Map<string, { total: number; wins: number }>();
+      trades.forEach((t) => {
+        if (t.setup_id) {
+          const entry = tradesBySetup.get(t.setup_id) || { total: 0, wins: 0 };
+          entry.total += 1;
+          const isWin = t.outcome === 'TP' || (!t.outcome && Number(t.pnl_r) > 0);
+          if (isWin) {
+            entry.wins += 1;
+          }
+          tradesBySetup.set(t.setup_id, entry);
+        }
+      });
+
+      const computedSetups: PlaybookSetup[] = rawSetups.map((setup) => {
+        const setupStats = tradesBySetup.get(setup.id) || { total: 0, wins: 0 };
+        const total = setupStats.total;
+        const winrate = total > 0 ? Math.round((setupStats.wins / total) * 100) : 0;
+
+        return {
+          ...setup,
+          total_trades: total,
+          winrate: winrate,
+        };
+      });
+
+      setSetups(computedSetups);
+
+      // Фоново актуализируем винрейт и количество сделок в таблице playbooks, если данные в базе разошлись
+      computedSetups.forEach(async (s) => {
+        const original = rawSetups.find((r) => r.id === s.id);
+        if (original && (Number(original.winrate) !== s.winrate || Number(original.total_trades) !== s.total_trades)) {
+          await supabase
+            .from('playbooks')
+            .update({ winrate: s.winrate, total_trades: s.total_trades })
+            .eq('id', s.id)
+            .eq('user_id', userId);
+        }
+      });
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -87,36 +176,20 @@ export function PlaybookView() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchSetups]);
 
+  // Закрытие мобильного поповера по клику вовне
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
-        setIsSortOpen(false);
+      if (mobileFilterRef.current && !mobileFilterRef.current.contains(e.target as Node)) {
+        setIsMobileFilterOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const fetchSetups = async (userId: string) => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('playbooks')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setSetups(data as PlaybookSetup[]);
-      }
-    } catch (err) {
-      console.error('Fetch error:', err);
-    } finally {
-      setIsLoading(false);
+    if (isMobileFilterOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
     }
-  };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobileFilterOpen]);
 
   const handleOpenCreateModal = () => {
     setEditingSetup(null);
@@ -124,7 +197,6 @@ export function PlaybookView() {
   };
 
   const handleOpenEditModal = (setup: PlaybookSetup) => {
-    setActiveMenuId(null);
     setEditingSetup(setup);
     setIsModalOpen(true);
   };
@@ -161,370 +233,820 @@ export function PlaybookView() {
       }
       setSetups((prev) => [{ id: createdId, ...fullPayload, created_at: new Date().toISOString() }, ...prev]);
     }
+    if (user?.id) {
+      fetchSetups(user.id);
+    }
   };
 
   const handleDeleteSetup = async (id: string) => {
-    setActiveMenuId(null);
-    if (!confirm('Delete this setup?')) return;
-
     if (isSupabaseConfigured && user) {
+      // Отвязываем сделки от удаляемого сетапа перед удалением, чтобы не было конфликта внешних ключей
+      await supabase
+        .from('trades')
+        .update({ setup_id: null })
+        .eq('setup_id', id)
+        .eq('user_id', user.id);
+
       await supabase.from('playbooks').delete().eq('id', id).eq('user_id', user.id);
     }
     setSetups((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const handleToggleActive = async (setup: PlaybookSetup) => {
-    setActiveMenuId(null);
-    const updatedStatus = !setup.is_active;
-    setSetups((prev) =>
-      prev.map((s) => (s.id === setup.id ? { ...s, is_active: updatedStatus } : s))
-    );
-
-    if (isSupabaseConfigured && user) {
-      await supabase
-        .from('playbooks')
-        .update({ is_active: updatedStatus })
-        .eq('id', setup.id)
-        .eq('user_id', user.id);
-    }
+  const openImageViewer = (images: string[], index = 0, title?: string) => {
+    setViewerState({
+      isOpen: true,
+      images,
+      index,
+      title,
+    });
   };
 
-  const filteredAndSortedSetups = useMemo(() => {
-    let result = [...setups];
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      result = result.filter((s) => s.title.toLowerCase().includes(q));
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setSortBy('winrate_desc');
+  };
+
+  // Метрики страницы (§3 Type C — Data list)
+  const stats = useMemo(() => {
+    const total = setups.length;
+    if (total === 0) return { total: 0, active: 0, avgWinRate: 0, totalTrades: 0 };
+
+    const active = setups.filter((s) => s.is_active).length;
+    const totalTrades = setups.reduce((acc, s) => acc + (s.total_trades || 0), 0);
+
+    let avgWinRate = 0;
+    if (totalTrades > 0) {
+      const weightedSum = setups.reduce((acc, s) => acc + s.winrate * (s.total_trades || 1), 0);
+      const totalWeight = setups.reduce((acc, s) => acc + (s.total_trades || 1), 0);
+      avgWinRate = Math.round(weightedSum / totalWeight);
+    } else {
+      avgWinRate = Math.round(setups.reduce((acc, s) => acc + s.winrate, 0) / total);
     }
-    result.sort((a, b) => {
-      if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
-      if (sortBy === 'winrate_desc') return b.winrate - a.winrate;
-      if (sortBy === 'trades_desc') return b.total_trades - a.total_trades;
-      return 0;
-    });
-    return result;
-  }, [setups, searchQuery, sortBy]);
+
+    return { total, active, avgWinRate, totalTrades };
+  }, [setups]);
+
+  // Фильтрация и сортировка
+  const filteredSetups = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return setups
+      .filter((s) => {
+        const matchesSearch = !q || s.title.toLowerCase().includes(q) || 
+          (s.description && s.description.toLowerCase().includes(q));
+        const matchesStatus = statusFilter === 'all' || 
+          (statusFilter === 'active' && s.is_active) || 
+          (statusFilter === 'inactive' && !s.is_active);
+
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
+        if (sortBy === 'winrate_desc') return b.winrate - a.winrate;
+        if (sortBy === 'winrate_asc') return a.winrate - b.winrate;
+        if (sortBy === 'trades_desc') return b.total_trades - a.total_trades;
+        return 0;
+      });
+  }, [setups, searchQuery, statusFilter, sortBy]);
+
+  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
 
   const getWinrateColor = (wr: number) => {
     if (wr >= 55) return 'text-emerald-500';
     if (wr >= 45) return 'text-amber-500';
-    return 'text-rose-500';
+    if (wr > 0) return 'text-rose-500';
+    return 'text-text-muted';
   };
 
-  return (
-    <div className="flex flex-col space-y-5 pb-12 w-full">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold text-text-main tracking-tight">Playbook</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-              {setups.length}
-            </span>
+  // =========================================================================
+  // РЕНДЕР КАРТОЧКИ (ИДЕНТИЧНО JOURNALVIEW)
+  // =========================================================================
+  const renderSetupItem = (setup: PlaybookSetup) => {
+    const hasScreenshots = Boolean(setup.screenshots && setup.screenshots.length > 0);
+    const screenshots = setup.screenshots || [];
+
+    // 1. Строчный режим (List view)
+    if (viewMode === 'list') {
+      return (
+        <div
+          key={setup.id}
+          onClick={() => handleOpenEditModal(setup)}
+          className="bg-card border border-border-card transition-colors cursor-pointer rounded-[18px] hover:border-blue-500/50"
+        >
+          {/* Desktop List Row (Строго h-16, четкие колонки) */}
+          <div className="hidden md:flex items-center justify-between gap-4 h-16 px-4 w-full">
+            {/* Колонка 1: Иконка (L0 w-9 h-9 rounded-[14px]), Название, Статус */}
+            <div className="flex items-center gap-2.5 w-64 shrink-0">
+              <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                <BookMarked size={16} />
+              </div>
+              <span className="text-sm font-bold text-text-main tracking-tight truncate w-36 shrink-0">
+                {setup.title}
+              </span>
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase shrink-0 min-w-[2.25rem] text-center",
+                  setup.is_active
+                    ? "bg-emerald-500/10 text-emerald-500"
+                    : "bg-canvas text-text-muted border border-border-card"
+                )}
+              >
+                {setup.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+
+            {/* Колонка 2: Правила стратегии (динамический центр flex-1) */}
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <span className="text-xs text-text-muted truncate max-w-[320px]">
+                {setup.description || 'No strategy rules configured'}
+              </span>
+            </div>
+
+            {/* Колонка 3: Параметры сделок (w-28) */}
+            <div className="w-28 shrink-0 flex flex-col justify-center gap-0.5">
+              <div className="flex items-baseline justify-between text-xs">
+                <span className="text-[0.6875rem] text-text-muted font-normal">Trades</span>
+                <span className="font-mono tabular-nums font-semibold text-text-main">
+                  {setup.total_trades}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between text-xs">
+                <span className="text-[0.6875rem] text-text-muted font-normal">Created</span>
+                <span className="font-mono tabular-nums text-[0.6875rem] text-text-muted">
+                  {setup.created_at ? new Date(setup.created_at).toLocaleDateString() : '—'}
+                </span>
+              </div>
+            </div>
+
+            {/* Колонка 4: Win Rate (w-24 text-right) */}
+            <div className="w-24 shrink-0 flex flex-col justify-center items-end text-right">
+              <div className={cn("text-sm font-bold font-mono tabular-nums leading-tight", getWinrateColor(setup.winrate))}>
+                {setup.winrate}%
+              </div>
+              <div className="text-[0.6875rem] font-mono tabular-nums text-text-muted leading-tight mt-0.5">
+                Win Rate
+              </div>
+            </div>
+
+            {/* Колонка 5: Миниатюра скриншота (w-10, идентично JournalView) */}
+            <div className="w-10 shrink-0 flex justify-end">
+              {hasScreenshots ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openImageViewer(screenshots, 0, `${setup.title} Charts`);
+                  }}
+                  className="relative w-10 h-10 rounded-[12px] overflow-hidden border border-border-card bg-canvas group cursor-pointer"
+                >
+                  <img src={screenshots[0]} alt="Thumbnail" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                  {screenshots.length > 1 && (
+                    <span className="absolute bottom-0 right-0 px-1 rounded-tl-[4px] bg-black/75 text-white text-[0.6875rem] font-mono tabular-nums">
+                      +{screenshots.length - 1}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <div className="w-10 h-10 rounded-[12px] border border-dashed border-border-card/40 flex items-center justify-center text-text-muted/30">
+                  <ImageIcon size={14} />
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-text-muted text-xs sm:text-sm mt-0.5">
-            Strategy playbooks & setups performance
-          </p>
+
+          {/* Mobile List Row (Строгая высота 4.5rem, одинаковые слоты колонок) */}
+          <div className="flex md:hidden items-center justify-between gap-2.5 w-full px-3 h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                <BookMarked size={16} />
+              </div>
+
+              <div className="min-w-0 flex-1 space-y-0.5">
+                {/* 1-я строка: Название, статус */}
+                <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                  <span className="text-sm font-bold text-text-main shrink-0 truncate max-w-[140px]">{setup.title}</span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase shrink-0",
+                      setup.is_active
+                        ? "bg-emerald-500/10 text-emerald-500"
+                        : "bg-canvas text-text-muted border border-border-card"
+                    )}
+                  >
+                    {setup.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                {/* 2-я строка: Описание */}
+                <div className="flex items-center gap-1.5 text-[0.6875rem] text-text-muted truncate">
+                  <span className="truncate">{setup.description || 'No strategy rules'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Правая колонка: Win Rate / Trades + фиксированный слот миниатюры */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="text-right flex flex-col justify-center">
+                <div className={cn("text-sm font-bold font-mono tabular-nums leading-tight", getWinrateColor(setup.winrate))}>
+                  {setup.winrate}%
+                </div>
+                <div className="text-[0.6875rem] text-text-muted font-mono tabular-nums mt-0.5">
+                  {setup.total_trades} trades
+                </div>
+              </div>
+
+              {/* Одинаковый слот миниатюры (w-9 h-9 rounded-[10px]) */}
+              <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+                {hasScreenshots ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openImageViewer(screenshots, 0, `${setup.title} Charts`);
+                    }}
+                    className="relative w-9 h-9 rounded-[10px] overflow-hidden border border-border-card bg-canvas cursor-pointer shrink-0"
+                  >
+                    <img src={screenshots[0]} alt="Thumbnail" className="w-full h-full object-cover" />
+                    {screenshots.length > 1 && (
+                      <span className="absolute bottom-0 right-0 px-0.5 rounded-tl-[3px] bg-black/80 text-white text-[0.6875rem] font-mono">
+                        +{screenshots.length - 1}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <div className="w-9 h-9 rounded-[10px] border border-dashed border-border-card/40 flex items-center justify-center text-text-muted/20 shrink-0">
+                    <ImageIcon size={12} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 2. Карточный режим (Grid view — реструктурированный тикет идентично JournalView)
+    return (
+      <div
+        key={setup.id}
+        onClick={() => handleOpenEditModal(setup)}
+        className="bg-card border border-border-card transition-colors cursor-pointer flex p-4 rounded-[26px] flex-col justify-between min-h-[180px] h-full hover:border-blue-500/50"
+      >
+        {/* ЯРУС 1: ШАПКА ТИКЕТА */}
+        <div className="flex items-center justify-between gap-3 w-full pb-3 border-b border-border-card/60">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+              <BookMarked size={16} />
+            </div>
+
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              <span className="text-sm font-bold tracking-tight text-text-main truncate">{setup.title}</span>
+              <span
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase shrink-0",
+                  setup.is_active
+                    ? "bg-emerald-500/10 text-emerald-500"
+                    : "bg-canvas text-text-muted border border-border-card"
+                )}
+              >
+                {setup.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+
+          {/* Главный результат (Win Rate) */}
+          <div className="text-right shrink-0">
+            <div className="flex flex-col items-end leading-tight">
+              <span className={cn("text-sm font-bold font-mono tabular-nums", getWinrateColor(setup.winrate))}>
+                {setup.winrate}%
+              </span>
+              <span className="text-[0.6875rem] font-mono tabular-nums text-text-muted mt-0.5">
+                Win Rate
+              </span>
+            </div>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenCreateModal}
-          className="h-10 px-4 flex items-center justify-center gap-2 bg-blue-500 text-white rounded-[16px] font-semibold text-sm hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer shrink-0 self-start sm:self-auto"
-        >
-          <Plus size={17} />
-          <span>New Setup</span>
-        </button>
-      </div>
+        {/* ЯРУС 2: ТЕЛО ТИКЕТА (Правила + превью) */}
+        <div className="flex items-start justify-between gap-3 my-auto py-2.5 w-full">
+          <div className="flex-1 min-w-0 space-y-2">
+            {setup.description ? (
+              <p className="text-xs text-text-muted line-clamp-2 leading-relaxed font-normal">
+                {setup.description}
+              </p>
+            ) : (
+              <p className="text-xs text-text-muted/40 italic font-normal">
+                No strategy rules configured
+              </p>
+            )}
+          </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-card border border-border-card rounded-[20px] p-2">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted/60 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search setups..."
-            className="w-full h-9 bg-canvas border border-border-card rounded-[14px] pl-9 pr-8 text-xs text-text-main placeholder:text-text-muted/60 outline-none focus:border-blue-500 transition-all"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main cursor-pointer"
+          {/* Миниатюра: точный размер и позиция как в JournalView (w-16 h-14 rounded-[12px]) */}
+          {hasScreenshots ? (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                openImageViewer(screenshots, 0, `${setup.title} Charts`);
+              }}
+              className="relative w-16 h-14 rounded-[12px] overflow-hidden border border-border-card bg-canvas shrink-0 group/img cursor-pointer shadow-xs"
             >
-              <X size={13} />
-            </button>
+              <img
+                src={screenshots[0]}
+                alt="Preview"
+                className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
+              />
+              {screenshots.length > 1 && (
+                <span className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/75 text-white text-[0.6875rem] font-mono tabular-nums flex items-center gap-0.5">
+                  <ImageIcon size={9} />
+                  {screenshots.length}
+                </span>
+              )}
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                <ImageIcon size={14} />
+              </div>
+            </div>
+          ) : (
+            <div className="w-16 h-14 rounded-[12px] border border-dashed border-border-card/40 flex items-center justify-center text-text-muted/20 shrink-0">
+              <ImageIcon size={14} />
+            </div>
           )}
         </div>
 
+        {/* ЯРУС 3: ФУТЕР ТИКЕТА */}
+        <div className="pt-2 border-t border-border-card/60 w-full flex items-center justify-between text-[0.6875rem]">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1 text-text-muted">
+              <span>Trades</span>
+              <span className="font-mono tabular-nums font-semibold text-text-main">{setup.total_trades}</span>
+            </div>
+            <span className="text-border-card/80">•</span>
+            <div className="flex items-center gap-1 text-text-muted">
+              <span>Status</span>
+              <span className="font-semibold text-text-main">{setup.is_active ? 'Live' : 'Archived'}</span>
+            </div>
+          </div>
+          <div className="font-mono tabular-nums text-text-muted">
+            {setup.created_at ? new Date(setup.created_at).toLocaleDateString() : '—'}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-4 sm:gap-6 pb-16 w-full max-w-[960px] mx-auto">
+      {/* 1. Page Header (§3 Page header) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-main">Playbook</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold font-mono tabular-nums bg-blue-500/10 text-blue-500">
+              {setups.length}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+            Strategy playbooks, entry rules & setups execution accuracy
+          </p>
+        </div>
+
         <div className="flex items-center gap-2 shrink-0">
-          {/* Sort Selector */}
-          <div className="relative" ref={sortRef}>
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="h-11 md:h-10 px-4 rounded-[18px] bg-blue-500 text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-600 transition-all cursor-pointer shadow-sm shadow-blue-500/20 active:scale-[0.98]"
+          >
+            <Plus size={16} />
+            <span>New Setup</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Metrics Block (§3 Type C — Data list) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Setups</span>
+          <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-text-main">
+            {stats.total}
+          </div>
+        </div>
+
+        <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Active</span>
+          <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-emerald-500">
+            {stats.active}
+          </div>
+        </div>
+
+        <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Avg Win Rate</span>
+          <div className={cn("text-base sm:text-xl font-bold font-mono tabular-nums", getWinrateColor(stats.avgWinRate))}>
+            {stats.avgWinRate}%
+          </div>
+        </div>
+
+        <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Total Trades</span>
+          <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-text-main">
+            {stats.totalTrades}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Toolbar (§3 Toolbar) */}
+      <div className="flex flex-col gap-2 relative z-30 w-full">
+        {/* Desktop Toolbar */}
+        <div className="hidden md:flex items-center justify-between gap-3 w-full">
+          <div className="relative w-48 shrink-0">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search setups..."
+              className="w-full h-9 pl-8 pr-8 bg-card border border-border-card rounded-[18px] text-xs font-medium text-text-main placeholder:text-text-muted outline-none focus:border-blue-500 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main cursor-pointer"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Статус */}
+            <div className="w-36 shrink-0">
+              <Select
+                size="sm"
+                icon={SlidersHorizontal}
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v as StatusFilter)}
+                options={STATUS_SELECT_OPTIONS}
+              />
+            </div>
+
+            {/* Сортировка */}
+            <div className="w-44 shrink-0">
+              <Select
+                size="sm"
+                icon={ArrowUpDown}
+                value={sortBy}
+                onChange={(v) => setSortBy(v as SortOption)}
+                options={SORT_SELECT_OPTIONS}
+              />
+            </div>
+
+            {/* Переключатель вида */}
+            <div className="flex p-1 bg-card border border-border-card rounded-[18px] h-9 items-center shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "relative w-8 h-7 flex items-center justify-center rounded-[14px] transition-colors cursor-pointer z-10",
+                  viewMode === 'grid' ? "text-text-main" : "text-text-muted hover:text-text-main"
+                )}
+                aria-label="Grid layout"
+              >
+                <LayoutGrid size={14} className="relative z-10" />
+                {viewMode === 'grid' && (
+                  <motion.div
+                    layoutId="playbook-view-toggle-mode"
+                    className="absolute inset-0 bg-canvas rounded-[14px] border border-border-card shadow-sm"
+                    transition={{ type: 'spring', damping: 30, stiffness: 450 }}
+                  />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "relative w-8 h-7 flex items-center justify-center rounded-[14px] transition-colors cursor-pointer z-10",
+                  viewMode === 'list' ? "text-text-main" : "text-text-muted hover:text-text-main"
+                )}
+                aria-label="List layout"
+              >
+                <List size={14} className="relative z-10" />
+                {viewMode === 'list' && (
+                  <motion.div
+                    layoutId="playbook-view-toggle-mode"
+                    className="absolute inset-0 bg-canvas rounded-[14px] border border-border-card shadow-sm"
+                    transition={{ type: 'spring', damping: 30, stiffness: 450 }}
+                  />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Toolbar */}
+        <div className="flex md:hidden items-center gap-2 w-full relative">
+          <div className="relative flex-1 min-w-0">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search setups..."
+              className="w-full h-11 pl-10 pr-8 bg-card border border-border-card rounded-[18px] text-xs font-medium text-text-main placeholder:text-text-muted outline-none focus:border-blue-500 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Filter / Sort Button with Anchored Popover */}
+          <div className="relative shrink-0" ref={mobileFilterRef}>
             <button
               type="button"
-              onClick={() => setIsSortOpen(!isSortOpen)}
-              className="h-9 px-3 bg-canvas border border-border-card rounded-[14px] flex items-center gap-2 text-xs font-medium text-text-main hover:border-border-card/80 transition-all cursor-pointer"
+              onClick={() => setIsMobileFilterOpen((prev) => !prev)}
+              aria-label="Filter & sort setups"
+              className={cn(
+                "relative w-11 h-11 rounded-[18px] border flex items-center justify-center transition-colors cursor-pointer",
+                isMobileFilterOpen || activeFilterCount > 0
+                  ? "bg-card border-blue-500 text-blue-500 shadow-sm"
+                  : "bg-card border-border-card text-text-muted hover:text-text-main"
+              )}
             >
-              <ArrowUpDown size={13} className="text-text-muted" />
-              <span>{SORT_LABELS[sortBy]}</span>
-              <ChevronDown size={13} className="text-text-muted opacity-60" />
+              <SlidersHorizontal size={18} />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[0.625rem] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
 
             <AnimatePresence>
-              {isSortOpen && (
+              {isMobileFilterOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                  transition={{ duration: 0.12 }}
-                  className="absolute right-0 top-full mt-1.5 w-44 bg-card border border-border-card rounded-[16px] p-1 shadow-xl z-30"
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] bg-card border border-border-card rounded-[18px] p-3 shadow-xl z-50 flex flex-col gap-3"
                 >
-                  {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => (
+                  <div className="flex items-center justify-between pb-2 border-b border-border-card">
+                    <span className="text-xs font-semibold text-text-main uppercase tracking-wider">
+                      Setup Filters
+                    </span>
                     <button
-                      key={key}
                       type="button"
-                      onClick={() => {
-                        setSortBy(key);
-                        setIsSortOpen(false);
-                      }}
-                      className={cn(
-                        "w-full px-2.5 py-1.5 text-xs rounded-[10px] text-left transition-colors cursor-pointer",
-                        sortBy === key 
-                          ? "bg-blue-500/10 text-blue-500 font-semibold" 
-                          : "text-text-muted hover:text-text-main hover:bg-canvas"
-                      )}
+                      onClick={() => setIsMobileFilterOpen(false)}
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer"
                     >
-                      {SORT_LABELS[key]}
+                      <X size={14} />
                     </button>
-                  ))}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[0.6875rem] font-semibold text-text-muted uppercase">Status</label>
+                    <Select
+                      size="md"
+                      icon={SlidersHorizontal}
+                      value={statusFilter}
+                      onChange={(v) => setStatusFilter(v as StatusFilter)}
+                      options={STATUS_SELECT_OPTIONS}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[0.6875rem] font-semibold text-text-muted uppercase">Sort By</label>
+                    <Select
+                      size="md"
+                      icon={ArrowUpDown}
+                      value={sortBy}
+                      onChange={(v) => setSortBy(v as SortOption)}
+                      options={SORT_SELECT_OPTIONS}
+                    />
+                  </div>
+
+                  {activeFilterCount > 0 && (
+                    <div className="pt-2 border-t border-border-card flex items-center justify-between">
+                      <span className="text-[0.6875rem] text-text-muted font-mono">{activeFilterCount} active</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetFilters();
+                          setIsMobileFilterOpen(false);
+                        }}
+                        className="text-xs text-rose-500 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                      >
+                        <RotateCcw size={11} />
+                        <span>Reset all</span>
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* View Mode Switcher */}
-          <div className="flex items-center bg-canvas border border-border-card rounded-[14px] p-1 relative h-9">
+          {/* Mobile View Mode Switcher */}
+          <div className="flex p-1 bg-card border border-border-card rounded-[18px] h-11 items-center shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
               className={cn(
-                "relative w-7 h-7 flex items-center justify-center rounded-[10px] transition-colors cursor-pointer z-10",
-                viewMode === 'grid' ? "text-blue-500" : "text-text-muted hover:text-text-main"
+                "relative w-10 h-9 flex items-center justify-center rounded-[14px] transition-colors cursor-pointer z-10",
+                viewMode === 'grid' ? "text-text-main" : "text-text-muted hover:text-text-main"
               )}
-              title="Card View"
+              aria-label="Grid layout"
             >
-              <LayoutGrid size={15} className="relative z-10" />
+              <LayoutGrid size={16} className="relative z-10" />
               {viewMode === 'grid' && (
                 <motion.div
-                  layoutId="viewModeIndicator"
-                  className="absolute inset-0 bg-card rounded-[10px] shadow-sm border border-border-card/80"
-                  transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                  layoutId="playbook-view-toggle-mode-mobile"
+                  className="absolute inset-0 bg-canvas rounded-[14px] border border-border-card shadow-sm"
+                  transition={{ type: 'spring', damping: 30, stiffness: 450 }}
                 />
               )}
             </button>
-
             <button
               type="button"
               onClick={() => setViewMode('list')}
               className={cn(
-                "relative w-7 h-7 flex items-center justify-center rounded-[10px] transition-colors cursor-pointer z-10",
-                viewMode === 'list' ? "text-blue-500" : "text-text-muted hover:text-text-main"
+                "relative w-10 h-9 flex items-center justify-center rounded-[14px] transition-colors cursor-pointer z-10",
+                viewMode === 'list' ? "text-text-main" : "text-text-muted hover:text-text-main"
               )}
-              title="List View"
+              aria-label="List layout"
             >
-              <List size={15} className="relative z-10" />
+              <List size={16} className="relative z-10" />
               {viewMode === 'list' && (
                 <motion.div
-                  layoutId="viewModeIndicator"
-                  className="absolute inset-0 bg-card rounded-[10px] shadow-sm border border-border-card/80"
-                  transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                  layoutId="playbook-view-toggle-mode-mobile"
+                  className="absolute inset-0 bg-canvas rounded-[14px] border border-border-card shadow-sm"
+                  transition={{ type: 'spring', damping: 30, stiffness: 450 }}
                 />
               )}
             </button>
           </div>
         </div>
+
+        {/* Активные чипсы фильтрации */}
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            {statusFilter !== 'all' && (
+              <div className="h-6 pl-2.5 pr-1 rounded-full bg-blue-500/10 text-blue-500 text-[0.6875rem] font-medium flex items-center gap-1">
+                <span>Status: {STATUS_SELECT_OPTIONS.find((o) => o.value === statusFilter)?.label}</span>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-blue-500/20 cursor-pointer"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            )}
+
+            {searchQuery && (
+              <div className="h-6 pl-2.5 pr-1 rounded-full bg-blue-500/10 text-blue-500 text-[0.6875rem] font-medium flex items-center gap-1">
+                <span>Search: &ldquo;{searchQuery}&rdquo;</span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-blue-500/20 cursor-pointer"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-[0.6875rem] text-text-muted hover:text-text-main flex items-center gap-1 ml-1 cursor-pointer"
+            >
+              <RotateCcw size={10} />
+              <span>Clear all</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Content Section */}
+      {/* 4. Content Area (§7 Empty / Loading / Error states) */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((n) => (
-            <div
-              key={n}
-              className="bg-card border border-border-card rounded-[22px] p-4 h-[280px] flex flex-col justify-between animate-pulse box-border"
-            >
-              <div className="h-4 bg-canvas rounded w-1/2" />
-              <div className="h-24 bg-canvas rounded-[14px] w-full" />
-              <div className="h-9 bg-canvas rounded w-full" />
-              <div className="h-6 bg-canvas rounded w-1/3" />
-            </div>
-          ))}
-        </div>
-      ) : filteredAndSortedSetups.length === 0 ? (
-        <div className="bg-card border border-border-card rounded-[24px] p-10 flex flex-col items-center justify-center text-center min-h-[300px]">
-          <div className="w-12 h-12 rounded-[18px] bg-blue-500/10 text-blue-500 flex items-center justify-center mb-3">
-            <BookMarked size={24} />
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="bg-card border border-border-card rounded-[26px] p-4 min-h-[180px] animate-pulse flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-border-card/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-[14px] bg-canvas" />
+                    <div className="w-24 h-4 rounded-[14px] bg-canvas" />
+                  </div>
+                  <div className="w-12 h-4 rounded-full bg-canvas" />
+                </div>
+                <div className="space-y-2 my-auto py-2.5">
+                  <div className="w-3/4 h-3 rounded-[14px] bg-canvas" />
+                  <div className="w-1/2 h-3 rounded-[14px] bg-canvas" />
+                </div>
+                <div className="pt-2 border-t border-border-card/60 flex items-center justify-between">
+                  <div className="w-16 h-3 rounded-[14px] bg-canvas" />
+                  <div className="w-14 h-3 rounded-[14px] bg-canvas" />
+                </div>
+              </div>
+            ))}
           </div>
-          <h3 className="text-base font-semibold text-text-main">
-            {searchQuery ? 'No setups found' : 'No setups created yet'}
-          </h3>
-          <p className="text-text-muted text-xs max-w-xs mt-1 mb-5">
-            {searchQuery
-              ? 'Try changing your search keywords.'
-              : 'Add your strategies to start tracking execution accuracy and win rates.'}
-          </p>
+        ) : (
+          <div className="flex flex-col space-y-3">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="bg-card border border-border-card rounded-[18px] h-16 px-4 flex items-center justify-between animate-pulse"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-[14px] bg-canvas" />
+                  <div className="space-y-1.5">
+                    <div className="w-28 h-4 rounded-[14px] bg-canvas" />
+                    <div className="w-16 h-3 rounded-[14px] bg-canvas" />
+                  </div>
+                </div>
+                <div className="w-20 h-4 rounded-[14px] bg-canvas" />
+                <div className="w-16 h-4 rounded-[14px] bg-canvas" />
+              </div>
+            ))}
+          </div>
+        )
+      ) : hasError ? (
+        <div className="py-12 px-6 flex flex-col items-center text-center gap-3 bg-card border border-border-card rounded-[26px]">
+          <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-text-main">Couldn&apos;t load setups</h3>
+            <p className="text-xs font-normal text-text-muted mt-1">
+              There was a problem communicating with the database. Check your network or try again.
+            </p>
+          </div>
           <button
             type="button"
-            onClick={handleOpenCreateModal}
-            className="h-9 px-4 flex items-center gap-1.5 bg-blue-500 text-white rounded-[14px] text-xs font-semibold hover:bg-blue-600 cursor-pointer"
+            onClick={() => { if (user) fetchSetups(user.id); }}
+            className="mt-2 h-10 px-4 rounded-[18px] bg-card border border-border-card text-text-main text-xs font-medium hover:bg-canvas transition-colors cursor-pointer flex items-center gap-2"
           >
-            <Plus size={15} />
-            <span>Create Setup</span>
+            <RotateCcw size={14} />
+            <span>Retry</span>
           </button>
         </div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <AnimatePresence mode="popLayout">
-            {filteredAndSortedSetups.map((setup) => {
-              const hasScreenshots = Boolean(setup.screenshots && setup.screenshots.length > 0);
-              const firstScreenshot = hasScreenshots ? setup.screenshots![0] : null;
-
-              return (
-                <motion.div
-                  key={setup.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={() => handleOpenEditModal(setup)}
-                  className="relative bg-card border border-border-card rounded-[22px] p-4 flex flex-col justify-between h-[280px] w-full shadow-sm transition-colors hover:border-blue-500/40 group overflow-hidden box-border cursor-pointer"
-                >
-                  {/* Top Bar */}
-                  <div className="flex items-center justify-between gap-2 h-7 shrink-0">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          "w-2 h-2 rounded-full shrink-0",
-                          setup.is_active ? "bg-emerald-500" : "bg-text-muted/40"
-                        )}
-                        title={setup.is_active ? 'Active Strategy' : 'Inactive'}
-                      />
-                      <h3 className="font-semibold text-text-main text-sm truncate group-hover:text-blue-500 transition-colors">
-                        {setup.title}
-                      </h3>
-                    </div>
-                  </div>
-
-                  {/* Screenshot Container */}
-                  <div className="h-24 w-full my-2 shrink-0 overflow-hidden">
-                    {hasScreenshots && firstScreenshot ? (
-                      <div
-                        onClick={(e) => { e.stopPropagation(); setLightboxImage({ url: firstScreenshot, title: setup.title }); }}
-                        className="h-full w-full rounded-[14px] overflow-hidden border border-border-card bg-canvas cursor-pointer relative group/img"
-                      >
-                        <img
-                          src={firstScreenshot}
-                          alt={setup.title}
-                          className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-200"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-[11px] text-white font-medium">
-                          <ZoomIn size={13} />
-                          <span>View ({setup.screenshots!.length})</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="h-full w-full rounded-[14px] border border-dashed border-border-card/60 bg-canvas/30 flex flex-col items-center justify-center text-text-muted/40 text-xs gap-1 select-none">
-                        <ImageIcon size={16} />
-                        <span className="text-[10px]">No charts</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Rules description */}
-                  <div className="h-9 shrink-0 overflow-hidden">
-                    <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
-                      {setup.description || 'No strategy rules configured.'}
-                    </p>
-                  </div>
-
-                  {/* Metrics Footer */}
-                  <div className="pt-2 border-t border-border-card/70 flex items-baseline justify-between shrink-0 h-10">
-                    <div>
-                      <div className={cn("text-xl font-bold tracking-tight leading-none", getWinrateColor(setup.winrate))}>
-                        {setup.winrate}%
-                      </div>
-                      <div className="text-[9px] text-text-muted uppercase font-semibold mt-0.5">Win Rate</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-text-main leading-none">{setup.total_trades}</div>
-                      <div className="text-[9px] text-text-muted uppercase font-semibold mt-0.5">Trades</div>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+      ) : filteredSetups.length === 0 ? (
+        <div className="py-12 px-6 flex flex-col items-center text-center gap-3 bg-card border border-border-card rounded-[26px]">
+          <div className="w-12 h-12 rounded-full bg-canvas text-text-muted flex items-center justify-center">
+            <BookMarked size={24} />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-text-main">
+              {searchQuery || statusFilter !== 'all' ? 'No setups found' : 'No setups created yet'}
+            </h3>
+            <p className="text-xs font-normal text-text-muted mt-1">
+              {searchQuery || statusFilter !== 'all'
+                ? 'Try changing your search keywords or active filters'
+                : 'Add your strategies to start tracking execution accuracy and win rates'}
+            </p>
+          </div>
+          {searchQuery || statusFilter !== 'all' ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="mt-2 text-xs text-blue-500 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw size={12} />
+              <span>Reset all filters</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="mt-2 h-11 md:h-10 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors cursor-pointer"
+            >
+              Create first setup
+            </button>
+          )}
         </div>
       ) : (
-        /* List View */
-        <div className="bg-card border border-border-card rounded-[22px] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-border-card bg-canvas/50 text-[10px] font-semibold uppercase text-text-muted">
-                  <th className="py-3 px-4">Setup</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3">Rules</th>
-                  <th className="py-3 px-3 text-center">Charts</th>
-                  <th className="py-3 px-3 text-center">Trades</th>
-                  <th className="py-3 px-4 text-right">Win Rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-card/50">
-                {filteredAndSortedSetups.map((setup) => (
-                  <tr 
-                    key={setup.id} 
-                    onClick={() => handleOpenEditModal(setup)}
-                    className="hover:bg-canvas transition-colors cursor-pointer"
-                  >
-                    <td className="py-3 px-4 font-semibold text-text-main">{setup.title}</td>
-                    <td className="py-3 px-3">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border",
-                        setup.is_active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-canvas text-text-muted border-border-card"
-                      )}>
-                        {setup.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 max-w-xs text-text-muted truncate">{setup.description || '—'}</td>
-                    <td className="py-3 px-3 text-center">
-                      {setup.screenshots && setup.screenshots.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setLightboxImage({ url: setup.screenshots![0], title: setup.title }); }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[10px] font-semibold cursor-pointer"
-                        >
-                          <ImageIcon size={11} />
-                          <span>{setup.screenshots.length}</span>
-                        </button>
-                      ) : <span className="text-text-muted">—</span>}
-                    </td>
-                    <td className="py-3 px-3 text-center font-medium text-text-main">{setup.total_trades}</td>
-                    <td className="py-3 px-4 text-right">
-                      <span className={cn("font-bold", getWinrateColor(setup.winrate))}>
-                        {setup.winrate}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div
+          className={cn(
+            viewMode === 'grid'
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              : "flex flex-col space-y-3"
+          )}
+        >
+          {filteredSetups.map((s) => renderSetupItem(s))}
         </div>
       )}
 
-      {/* Modals */}
+      {/* 5. Overlays Layer (§1 App Shell & §5 Modal) */}
       <PlaybookModal
         isOpen={isModalOpen}
         editingSetup={editingSetup}
@@ -534,11 +1056,14 @@ export function PlaybookView() {
         onDelete={handleDeleteSetup}
       />
 
+      {/* Галерея скриншотов */}
       <ImageViewerModal
-        isOpen={Boolean(lightboxImage)}
-        imageUrl={lightboxImage?.url || null}
-        title={lightboxImage?.title}
-        onClose={() => setLightboxImage(null)}
+        isOpen={viewerState.isOpen}
+        images={viewerState.images}
+        imageUrl={viewerState.images[viewerState.index] || null}
+        initialIndex={viewerState.index}
+        title={viewerState.title}
+        onClose={() => setViewerState((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

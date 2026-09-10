@@ -2,29 +2,56 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { lockBodyScroll } from '../lib/scrollLock';
 import { AuthScreen } from './AuthScreen';
 
-interface ModalProps {
+export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   hideFooter?: boolean;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  onSave?: () => void;
+  saveText?: string;
+  cancelText?: string;
+  isSaving?: boolean;
 }
 
-export function BaseModal({ isOpen, onClose, title, children, hideFooter = false }: ModalProps) {
-  // Prevent body scroll when open on mobile
+const SIZE_CLASSES = {
+  sm: 'md:w-[380px]',
+  md: 'md:w-[480px]',
+  lg: 'md:w-[760px] lg:w-[860px]',
+  xl: 'md:w-[960px]',
+};
+
+export function BaseModal({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
+  hideFooter = false,
+  size = 'md',
+  onSave,
+  saveText = 'Save',
+  cancelText = 'Cancel',
+  isSaving = false,
+}: ModalProps) {
+  // Lock body scroll on mobile
   useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    if (isOpen && isMobile) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    if (!isOpen) return;
+    return lockBodyScroll();
   }, [isOpen]);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
@@ -35,20 +62,21 @@ export function BaseModal({ isOpen, onClose, title, children, hideFooter = false
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             onClick={onClose}
             className="absolute inset-0 bg-black/60 hidden md:block"
-            style={{ backdropFilter: 'none' }} // Ensure no blur
           />
           
           {/* Modal Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 12 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
               "relative w-full h-[100dvh] flex flex-col bg-card border-border-card text-text-main",
-              "md:h-auto md:max-h-[85vh] md:w-full md:max-w-lg md:rounded-[26px] md:border overflow-hidden shadow-2xl rounded-none border-0"
+              "md:h-auto md:max-h-[85vh] md:rounded-[26px] md:border overflow-hidden shadow-2xl rounded-none border-0",
+              SIZE_CLASSES[size]
             )}
             style={{
               paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -56,37 +84,42 @@ export function BaseModal({ isOpen, onClose, title, children, hideFooter = false
             }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-3 md:py-4 border-b-0 md:border-b border-border-card shrink-0">
-              <h2 className="text-xl md:text-lg font-bold md:font-semibold text-text-main tracking-tight md:tracking-normal">
+            <div className="flex items-center justify-between px-6 py-5 md:px-8 md:py-6 border-b border-border-card shrink-0">
+              <h2 className="text-base font-semibold text-text-main truncate">
                 {title}
               </h2>
               <button 
+                type="button"
                 onClick={onClose}
-                className="w-10 h-10 md:w-9 md:h-9 rounded-full bg-card md:bg-transparent border border-border-card md:border-transparent flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-90 md:active:scale-95 transition-all shadow-sm md:shadow-none cursor-pointer"
+                aria-label="Close modal"
+                className="w-11 h-11 md:w-9 md:h-9 rounded-full bg-card md:bg-transparent border border-border-card md:border-transparent flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer shrink-0"
               >
-                <X size={20} className="md:w-[18px] md:h-[18px]" />
+                <X size={18} />
               </button>
             </div>
             
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 pt-2 pb-6 md:p-6 custom-scrollbar">
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 md:px-8 md:py-6 custom-scrollbar">
               {children}
             </div>
 
-            {/* Desktop Footer (optional) */}
+            {/* Footer */}
             {!hideFooter && (
-              <div className="hidden md:flex items-center justify-end p-4 border-t border-border-card gap-3">
+              <div className="px-6 py-4 md:px-8 md:py-5 border-t border-border-card flex items-center justify-end gap-3 shrink-0">
                 <button 
+                  type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-full border border-border-card text-text-muted hover:text-text-main hover:bg-canvas transition-colors font-medium"
+                  className="h-11 md:h-10 px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {cancelText}
                 </button>
                 <button 
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-full bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+                  type="button"
+                  disabled={isSaving}
+                  onClick={onSave || onClose}
+                  className="h-11 md:h-10 px-5 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer disabled:opacity-50"
                 >
-                  Save
+                  {saveText}
                 </button>
               </div>
             )}
@@ -99,7 +132,7 @@ export function BaseModal({ isOpen, onClose, title, children, hideFooter = false
 
 export function AuthModal({ isOpen, onClose }: Omit<ModalProps, 'title' | 'children'>) {
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Account" hideFooter>
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Account" hideFooter size="md">
       <AuthScreen isModal onSuccess={onClose} />
     </BaseModal>
   );

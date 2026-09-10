@@ -1,21 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { AppLayout } from '../components/AppLayout';
+import { StatsView } from '../components/stats/StatsView';
 ---
 
-<Layout title="Stats - Trading Journal">
+<Layout title="Statistics & Performance - Trading Journal">
   <AppLayout activeTab="stats" client:load>
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-main">Analytics & Performance</h1>
-          <p className="text-text-muted text-sm mt-1">Deep dive into your trading metrics</p>
-        </div>
-      </div>
-      <div className="flex-1 bg-card border border-border-card rounded-[26px] flex items-center justify-center shadow-sm">
-        <p className="text-text-muted">Stats Content Placeholder</p>
-      </div>
-    </div>
+    <StatsView client:load />
   </AppLayout>
 </Layout>
-

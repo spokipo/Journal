@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { AppLayout } from '../components/AppLayout';
+import { SystemView } from '../components/system/SystemView';
+---
+
+<Layout title="System - Trading Journal">
+  <AppLayout activeTab="system" client:load>
+    <SystemView client:only="react" />
+  </AppLayout>
+</Layout>
+

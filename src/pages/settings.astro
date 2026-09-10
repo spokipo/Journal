@@ -1,11 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { AppLayout } from '../components/AppLayout';
-import { SettingsPage } from '../components/SettingsPage';
+import { SettingsView } from '../components/settings/SettingsView';
 ---
 
-<Layout title="Settings">
+<Layout title="Settings - Trading Journal">
   <AppLayout activeTab="settings" client:load>
-    <SettingsPage client:load />
+    <SettingsView client:only="react" />
   </AppLayout>
 </Layout>

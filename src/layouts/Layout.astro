@@ -44,9 +44,10 @@ const { title = "Dashboard" } = Astro.props;
       const initialTheme = getThemePreference();
       applyTheme(initialTheme);
 
-      // Re-apply theme after Astro client transitions
+      // Re-apply theme and ensure scroll unlocks after Astro client transitions
       document.addEventListener('astro:after-swap', () => {
         applyTheme(getThemePreference());
+        document.body.style.overflow = '';
       });
     </script>
   </head>

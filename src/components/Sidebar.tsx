@@ -14,7 +14,8 @@ import {
   Lightbulb, 
   LogOut, 
   Loader2,
-  BookMarked
+  BookMarked,
+  Cpu
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../lib/useTheme';
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard', href: '/' },
   { icon: BookOpen, label: 'Journal', id: 'journal', href: '/journal' },
   { icon: BookMarked, label: 'Playbook', id: 'playbook', href: '/playbook' },
+  { icon: Cpu, label: 'System', id: 'system', href: '/system' },
   { icon: BarChart2, label: 'Stats', id: 'stats', href: '/stats' },
   { icon: Settings, label: 'Settings', id: 'settings', href: '/settings' },
 ];
@@ -100,6 +102,21 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
     }
   };
 
+  const handleProfileClick = (e: React.MouseEvent) => {
+    if (!user) {
+      e.preventDefault();
+      setAuthModalOpen(true);
+      return;
+    }
+    if (typeof window !== 'undefined' && window.location.pathname === '/settings') {
+      e.preventDefault();
+      const url = new URL(window.location.href);
+      url.searchParams.set('section', 'profile');
+      window.history.pushState({ section: 'profile' }, '', url.toString());
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  };
+
   const displayName = user
     ? (user.user_metadata?.nickname || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Trader')
     : 'Trader Pro';
@@ -126,23 +143,23 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
 
         {/* Profile / Header */}
         <div className="px-3.5 py-3.5 border-b border-border-card flex items-center h-[76px] shrink-0">
-          <div 
-            onClick={() => {
-              if (!user) {
-                setAuthModalOpen(true);
-              } else {
-                window.location.href = '/settings';
-              }
-            }}
+          <a 
+            href={user ? "/settings?section=profile" : "#"}
+            onClick={handleProfileClick}
+            data-astro-prefetch="load"
             className="w-full h-11 px-1.5 flex items-center rounded-[18px] hover:bg-canvas transition-colors cursor-pointer group relative"
             title={isCollapsed ? `${displayName} (${displayEmail})` : undefined}
           >
-            <div className="w-10 h-10 rounded-full bg-blue-500/10 shrink-0 flex items-center justify-center text-blue-500 font-bold border border-blue-500/20 relative">
-              {avatarInitial}
-              <span className={cn(
-                "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-card",
-                user ? "bg-emerald-500" : "bg-amber-500"
-              )} />
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 shrink-0 flex items-center justify-center text-blue-500 font-bold border border-blue-500/20 relative overflow-hidden">
+              {user?.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                avatarInitial
+              )}
             </div>
 
             <motion.div 
@@ -172,7 +189,7 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
                 {displayName} {user?.email ? `(${user.email})` : '(Click to sign in)'}
               </div>
             )}
-          </div>
+          </a>
         </div>
 
         {/* Navigation */}
@@ -388,6 +405,11 @@ export function Sidebar({ activeTab }: { activeTab: string }) {
         isOpen={isIdeaModalOpen} 
         user={user}
         onClose={() => setIdeaModalOpen(false)} 
+        onConvertToTrade={(idea) => {
+          setSelectedIdeaForTrade(idea);
+          setIdeaModalOpen(false);
+          setTradeModalOpen(true);
+        }}
       />
 
       <AuthModal 
