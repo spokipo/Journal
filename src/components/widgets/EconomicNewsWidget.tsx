@@ -34,7 +34,17 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
   const [now, setNow] = useState<number>(Date.now());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const lastClosedAtRef = useRef<number>(0);
   const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
+
+  const handleCloseFilter = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    lastClosedAtRef.current = Date.now();
+    setIsFilterOpen(false);
+  };
 
   // Active filters
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([...ALL_CURRENCIES]);
@@ -244,7 +254,14 @@ function ImpactDot({ impact, isImminent, className }: { impact: 'HIGH' | 'MED' |
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        setIsFilterOpen(prev => !prev);
+        if (Date.now() - lastClosedAtRef.current < 400) {
+          return;
+        }
+        if (isFilterOpen) {
+          handleCloseFilter();
+        } else {
+          setIsFilterOpen(true);
+        }
       }}
       title="Filter economic events"
       className={cn(
@@ -432,14 +449,8 @@ function ImpactDot({ impact, isImminent, className }: { impact: 'HIGH' | 'MED' |
         <>
           <div
             className="fixed inset-0 z-40 bg-transparent cursor-default"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsFilterOpen(false);
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              setIsFilterOpen(false);
-            }}
+            onPointerDown={handleCloseFilter}
+            onClick={handleCloseFilter}
           />
           <motion.div
             initial={{ opacity: 0, y: 6, scale: 0.98 }}
@@ -459,10 +470,10 @@ function ImpactDot({ impact, isImminent, className }: { impact: 'HIGH' | 'MED' |
               <span className="text-xs font-semibold text-text-main">Calendar Filters</span>
               <button
                 type="button"
-                onClick={() => setIsFilterOpen(false)}
-                className="w-6 h-6 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main"
+                onClick={handleCloseFilter}
+                className="w-7 h-7 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
 
@@ -529,6 +540,16 @@ function ImpactDot({ impact, isImminent, className }: { impact: 'HIGH' | 'MED' |
                   );
                 })}
               </div>
+            </div>
+
+            <div className="mt-3 pt-2 border-t border-border-card/40 flex justify-end">
+              <button
+                type="button"
+                onClick={handleCloseFilter}
+                className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-500 hover:bg-blue-500/20 text-xs font-semibold cursor-pointer active:scale-95 transition-transform"
+              >
+                Done
+              </button>
             </div>
           </motion.div>
         </>,

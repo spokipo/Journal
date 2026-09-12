@@ -15,7 +15,27 @@ export function DailyRiskWidget({
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [inputVal, setInputVal] = useState<string>(String(dailyRiskLimit));
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const lastClosedAtRef = useRef<number>(0);
   const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
+
+  const handleCloseConfig = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    lastClosedAtRef.current = Date.now();
+    setIsConfigOpen(false);
+  };
+
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (Date.now() - lastClosedAtRef.current < 400) return;
+    if (isConfigOpen) {
+      handleCloseConfig();
+    } else {
+      setIsConfigOpen(true);
+    }
+  };
 
   useEffect(() => {
     setInputVal(String(dailyRiskLimit));
@@ -96,10 +116,7 @@ export function DailyRiskWidget({
             <button
               ref={triggerRef}
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsConfigOpen(prev => !prev);
-              }}
+              onClick={handleTriggerClick}
               title="Configure risk limit"
               className={cn(
                 "w-8 h-8 rounded-full bg-canvas border border-border-card flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95",
@@ -140,10 +157,7 @@ export function DailyRiskWidget({
             <button
               ref={triggerRef}
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsConfigOpen(prev => !prev);
-              }}
+              onClick={handleTriggerClick}
               title="Configure risk limit"
               className={cn(
                 "w-8 h-8 rounded-full bg-canvas border border-border-card flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95",
@@ -201,14 +215,8 @@ export function DailyRiskWidget({
         <>
           <div
             className="fixed inset-0 z-40 bg-transparent cursor-default"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsConfigOpen(false);
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              setIsConfigOpen(false);
-            }}
+            onPointerDown={handleCloseConfig}
+            onClick={handleCloseConfig}
           />
           <motion.div
             initial={{ opacity: 0, y: 6, scale: 0.98 }}
@@ -228,10 +236,10 @@ export function DailyRiskWidget({
               <span className="text-xs font-semibold text-text-main">Set Daily Risk Limit</span>
               <button
                 type="button"
-                onClick={() => setIsConfigOpen(false)}
-                className="w-6 h-6 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main"
+                onClick={handleCloseConfig}
+                className="w-7 h-7 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main cursor-pointer"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
 

@@ -48,15 +48,26 @@ function ExtraBadgesPill({
   }, [isActive, onActiveChange]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isActive) return;
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setIsHovered(false);
       }
     };
     document.addEventListener('pointerdown', handleClickOutside);
     return () => document.removeEventListener('pointerdown', handleClickOutside);
-  }, [isOpen]);
+  }, [isActive]);
+
+  const handleMouseEnter = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      setIsHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+  };
 
   if (!badges || badges.length === 0) return null;
 
@@ -64,13 +75,14 @@ function ExtraBadgesPill({
     <div
       ref={containerRef}
       className={cn("relative inline-flex items-center shrink-0", isActive ? "z-50" : "z-20")}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
+          setIsHovered(false);
           setIsOpen((prev) => !prev);
         }}
         aria-label={`${badges.length} additional tags`}
@@ -93,9 +105,9 @@ function ExtraBadgesPill({
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "absolute z-50 p-2 bg-card border border-border-card rounded-[18px] shadow-2xl flex flex-wrap gap-1.5 min-w-[150px] max-w-[240px] pointer-events-auto",
+              "absolute z-50 p-2 bg-card border border-border-card rounded-[18px] shadow-2xl flex flex-col items-center gap-1.5 w-max max-w-[calc(100vw-32px)] sm:max-w-[260px] pointer-events-auto",
               placement === 'bottom'
-                ? "left-0 top-full mt-1.5 before:absolute before:left-0 before:-top-2 before:right-0 before:h-2 before:content-['']"
+                ? "left-1/2 -translate-x-1/2 top-full mt-1.5 before:absolute before:left-0 before:-top-2 before:right-0 before:h-2 before:content-['']"
                 : "left-full top-1/2 -translate-y-1/2 ml-1.5 before:absolute before:-left-2 before:top-0 before:bottom-0 before:w-2 before:content-['']"
             )}
           >
@@ -103,12 +115,12 @@ function ExtraBadgesPill({
               <span
                 key={b.id}
                 className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-medium whitespace-nowrap shadow-2xs",
+                  "w-full inline-flex items-center justify-center gap-1 px-2.5 py-0.5 rounded-full text-[0.6875rem] font-medium whitespace-nowrap shadow-2xs text-center",
                   b.classes
                 )}
               >
                 {b.icon}
-                <span>{b.label}</span>
+                <span className="truncate">{b.label}</span>
               </span>
             ))}
           </motion.div>

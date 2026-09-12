@@ -39,10 +39,11 @@ interface JournalToolbarProps {
   onFilterChange: (vals: string[]) => void;
   activeFilterCount: number;
   resetFilters: () => void;
-  removeFilter: (type: 'account' | 'outcome' | 'session' | 'setup' | 'mistake', id: string) => void;
+  removeFilter: (type: 'account' | 'outcome' | 'session' | 'timeframe' | 'setup' | 'mistake', id: string) => void;
   selectedAccounts: string[];
   selectedOutcomes: string[];
   selectedSessions: string[];
+  selectedTimeframes?: string[];
   selectedSetups: string[];
   selectedMistakes: string[];
   accountsMap: Record<string, string>;
@@ -70,6 +71,7 @@ export function JournalToolbar({
   selectedAccounts,
   selectedOutcomes,
   selectedSessions,
+  selectedTimeframes = [],
   selectedSetups,
   selectedMistakes,
   accountsMap,
@@ -430,6 +432,23 @@ export function JournalToolbar({
                 type="button"
                 aria-label={`Remove session filter ${val}`}
                 onClick={() => removeFilter('session', val)}
+                className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-blue-500/20 active:scale-90 cursor-pointer"
+              >
+                <X size={10} />
+              </button>
+            </div>
+          ))}
+
+          {selectedTimeframes.map((tf) => (
+            <div
+              key={tf}
+              className="h-7 pl-2.5 pr-1 rounded-full bg-blue-500/10 text-blue-500 text-[0.6875rem] font-medium flex items-center gap-1"
+            >
+              <span>TF: {tf}</span>
+              <button
+                type="button"
+                aria-label={`Remove timeframe filter ${tf}`}
+                onClick={() => removeFilter('timeframe', tf)}
                 className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-blue-500/20 active:scale-90 cursor-pointer"
               >
                 <X size={10} />

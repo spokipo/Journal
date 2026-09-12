@@ -102,6 +102,26 @@ export interface DailyPnlItem {
   lossCount: number;
 }
 
+export interface MonthlyCellData {
+  netR: number;
+  netAmount: number | null;
+  tradesCount: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;
+}
+
+export interface YearPerformance {
+  year: number;
+  months: Record<number, MonthlyCellData>; // month 0-11
+  totalR: number;
+  totalAmount: number | null;
+  totalTrades: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;
+}
+
 export interface StatsSummary {
   hasMonetaryStats: boolean;
   totalTrades: number;
@@ -132,11 +152,19 @@ export interface StatsSummary {
   maxDrawdownAmount: number | null;
   maxDrawdownPercent: number | null;
 
+  gainPercent: number | null;
+  sharpeRatioR: number;
+  sharpeRatioAmount: number | null;
+  recoveryFactorR: number;
+  recoveryFactorAmount: number | null;
+  tradesPerWeek: number;
+
   maxConsecutiveWins: number;
   maxConsecutiveLosses: number;
 
   equityCurve: EquityPoint[];
   dailyPnl: DailyPnlItem[];
+  yearlyMatrix: YearPerformance[];
   bySession: BreakdownMetric[];
   byTimeframe: BreakdownMetric[];
   byDirection: BreakdownMetric[];
@@ -459,6 +487,12 @@ export function calculateStatistics(
       avgLossAmount: hasMoney ? 0 : null,
       maxDrawdownAmount: hasMoney ? 0 : null,
       maxDrawdownPercent: hasMoney ? 0 : null,
+      gainPercent: hasMoney ? 0 : null,
+      sharpeRatioR: 0,
+      sharpeRatioAmount: hasMoney ? 0 : null,
+      recoveryFactorR: 0,
+      recoveryFactorAmount: hasMoney ? 0 : null,
+      tradesPerWeek: 0,
       maxConsecutiveWins: 0,
       maxConsecutiveLosses: 0,
       equityCurve: hasMoney ? [{
@@ -474,6 +508,7 @@ export function calculateStatistics(
         totalBalance: startingAccountsBalance,
       }] : [],
       dailyPnl: [],
+      yearlyMatrix: [],
       bySession: [],
       byTimeframe: [],
       byDirection: [],
@@ -635,6 +670,113 @@ export function calculateStatistics(
     avgLossAmount = lossCount > 0 ? Number((grossLossAmount / lossCount).toFixed(2)) : 0;
   }
 
+  // 1. Gain % (ROI from starting account balance)
+  const gainPercent = startingAccountsBalance > 0
+    ? Number(((netAmount / startingAccountsBalance) * 100).toFixed(2))
+    : null;
+
+  // 2. Sharpe Ratio (sample std dev of per-trade returns)
+  let varSumR = 0;
+  chronologicalTrades.forEach((t) => {
+    varSumR += Math.pow(t.pnl_r - expectancyR, 2);
+  });
+  const stdDevR = total > 1 ? Math.sqrt(varSumR / (total - 1)) : 0;
+  const sharpeRatioR = stdDevR > 0 ? Number((expectancyR / stdDevR).toFixed(2)) : 0;
+
+  let sharpeRatioAmount: number | null = null;
+  if (hasMonetaryStats && expectancyAmount !== null) {
+    let varSumAmt = 0;
+    chronologicalTrades.forEach((t) => {
+      varSumAmt += Math.pow((t.pnl_amount ?? 0) - (expectancyAmount ?? 0), 2);
+    });
+    const stdDevAmt = total > 1 ? Math.sqrt(varSumAmt / (total - 1)) : 0;
+    sharpeRatioAmount = stdDevAmt > 0 ? Number(((expectancyAmount ?? 0) / stdDevAmt).toFixed(2)) : 0;
+  }
+
+  // 3. Recovery Factor (Net Result / Max Drawdown)
+  const recoveryFactorR = maxDrawdownR > 0
+    ? Number((netR / maxDrawdownR).toFixed(2))
+    : (netR > 0 ? Number(netR.toFixed(2)) : 0);
+
+  let recoveryFactorAmount: number | null = null;
+  if (hasMonetaryStats) {
+    recoveryFactorAmount = maxDrawdownAmount > 0
+      ? Number((netAmount / maxDrawdownAmount).toFixed(2))
+      : (netAmount > 0 ? Number(netAmount.toFixed(2)) : 0);
+  }
+
+  // 4. Trades per Week (pacing)
+  let tradesPerWeek = 0;
+  if (total > 0 && chronologicalTrades.length > 0) {
+    const firstDate = new Date(chronologicalTrades[0].trade_date).getTime();
+    const lastDate = new Date(chronologicalTrades[chronologicalTrades.length - 1].trade_date).getTime();
+    const diffDays = Math.max(1, Math.round(Math.abs(lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1);
+    const weeks = Math.max(1, diffDays / 7);
+    tradesPerWeek = Number((total / weeks).toFixed(1));
+  }
+
+  // 5. Yearly & Monthly Returns Matrix (MT5-style Jan-Dec grid)
+  const yearMap = new Map<number, YearPerformance>();
+
+  chronologicalTrades.forEach((t) => {
+    const d = new Date(t.trade_date);
+    const year = d.getFullYear();
+    const month = d.getMonth(); // 0..11
+
+    let yearData = yearMap.get(year);
+    if (!yearData) {
+      yearData = {
+        year,
+        months: {},
+        totalR: 0,
+        totalAmount: hasMonetaryStats ? 0 : null,
+        totalTrades: 0,
+        winCount: 0,
+        lossCount: 0,
+        winRate: 0,
+      };
+      yearMap.set(year, yearData);
+    }
+
+    let monthData = yearData.months[month];
+    if (!monthData) {
+      monthData = {
+        netR: 0,
+        netAmount: hasMonetaryStats ? 0 : null,
+        tradesCount: 0,
+        winCount: 0,
+        lossCount: 0,
+        winRate: 0,
+      };
+      yearData.months[month] = monthData;
+    }
+
+    const isWin = t.outcome === 'TP';
+    const isLoss = t.outcome === 'SL';
+    const r = t.pnl_r;
+    const amt = t.pnl_amount ?? 0;
+
+    monthData.tradesCount++;
+    monthData.netR = Number((monthData.netR + r).toFixed(2));
+    if (hasMonetaryStats) {
+      monthData.netAmount = Number(((monthData.netAmount ?? 0) + amt).toFixed(2));
+    }
+    if (isWin) monthData.winCount++;
+    if (isLoss) monthData.lossCount++;
+    monthData.winRate = Math.round((monthData.winCount / monthData.tradesCount) * 100);
+
+    yearData.totalTrades++;
+    yearData.totalR = Number((yearData.totalR + r).toFixed(2));
+    if (hasMonetaryStats) {
+      yearData.totalAmount = Number(((yearData.totalAmount ?? 0) + amt).toFixed(2));
+    }
+    if (isWin) yearData.winCount++;
+    if (isLoss) yearData.lossCount++;
+    yearData.winRate = Math.round((yearData.winCount / yearData.totalTrades) * 100);
+  });
+
+  const yearlyMatrix = Array.from(yearMap.values()).sort((a, b) => b.year - a.year);
+
   // Breakdown generators
   const buildBreakdowns = (
     extractor: (t: EnrichedTrade) => { key: string; label: string }[]
@@ -751,10 +893,17 @@ export function calculateStatistics(
     avgLossAmount,
     maxDrawdownAmount: Number(maxDrawdownAmount.toFixed(2)),
     maxDrawdownPercent: Number(maxDrawdownPercent.toFixed(1)),
+    gainPercent,
+    sharpeRatioR,
+    sharpeRatioAmount,
+    recoveryFactorR,
+    recoveryFactorAmount,
+    tradesPerWeek,
     maxConsecutiveWins,
     maxConsecutiveLosses,
     equityCurve,
     dailyPnl,
+    yearlyMatrix,
     bySession,
     byTimeframe,
     byDirection,

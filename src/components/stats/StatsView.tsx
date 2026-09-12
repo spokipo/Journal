@@ -22,6 +22,7 @@ import {
 import { StatsToolbar, type SortOption } from './StatsToolbar';
 import { StatsMetricsGrid } from './StatsMetricsGrid';
 import { StatsEquityChart } from './StatsEquityChart';
+import { StatsCalendarView } from './StatsCalendarView';
 import { StatsBreakdowns } from './StatsBreakdowns';
 import { StatsTradesTable } from './StatsTradesTable';
 import { TradeModal } from '../trade/TradeModal';
@@ -41,9 +42,9 @@ const INITIAL_FILTERS: FilterState = {
 function StatsSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      {/* Metrics Grid Skeleton */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
+      {/* Metrics Grid Skeleton (8 KPI cards) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
             className="h-28 bg-card border border-border-card rounded-[26px] p-4 flex flex-col justify-between"
@@ -319,7 +320,6 @@ export function StatsView() {
       <StatsToolbar
         filters={filters}
         accounts={accounts}
-        availableTimeframes={availableTimeframes}
         metricMode={metricMode}
         onMetricModeChange={handleMetricModeChange}
         onFilterChange={setFilters}
@@ -422,6 +422,20 @@ export function StatsView() {
                 equityCurve={stats.equityCurve}
                 initialBalance={startingBalance}
                 metricMode={metricMode}
+              />
+            </motion.div>
+
+            {/* Interactive Trading Calendar & Returns Matrix */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <StatsCalendarView
+                stats={stats}
+                trades={filteredTrades}
+                metricMode={metricMode}
+                onSelectTrade={handleSelectTrade}
               />
             </motion.div>
 

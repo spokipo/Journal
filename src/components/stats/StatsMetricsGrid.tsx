@@ -8,6 +8,8 @@ import {
   Award,
   Flame,
   ShieldAlert,
+  Zap,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { StatsSummary } from '../../lib/statsEngine';
@@ -45,9 +47,17 @@ export function StatsMetricsGrid({
     return `${sign}$${abs}`;
   };
 
+  const sharpeVal = metricMode === 'amount' && stats.sharpeRatioAmount !== null
+    ? stats.sharpeRatioAmount
+    : stats.sharpeRatioR;
+
+  const recoveryVal = metricMode === 'amount' && stats.recoveryFactorAmount !== null
+    ? stats.recoveryFactorAmount
+    : stats.recoveryFactorR;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-      {/* 1. Net PnL (R & Monetary) */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* 1. Net Result & Total Gain % */}
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Net Result</span>
@@ -63,7 +73,6 @@ export function StatsMetricsGrid({
         </div>
 
         <div>
-          {/* Main Figure */}
           {metricMode === 'r' ? (
             <div
               className={cn(
@@ -102,11 +111,19 @@ export function StatsMetricsGrid({
               </div>
             </div>
           )}
+
+          {stats.gainPercent !== null && (
+            <div className="mt-1 text-xs font-mono font-semibold">
+              <span className={cn(stats.gainPercent > 0 ? "text-emerald-500" : stats.gainPercent < 0 ? "text-rose-500" : "text-text-muted")}>
+                {stats.gainPercent > 0 ? '+' : ''}{stats.gainPercent.toFixed(2)}% Gain
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="pt-3 mt-3 border-t border-border-card text-[0.6875rem] text-text-muted flex items-center justify-between font-mono">
-          <span>Gross Win: {metricMode === 'amount' ? formatMoney(stats.grossWinAmount) : `+${stats.grossWinR.toFixed(1)}R`}</span>
-          <span>Gross Loss: {metricMode === 'amount' ? formatMoney(stats.grossLossAmount !== null && stats.grossLossAmount !== undefined ? -stats.grossLossAmount : null) : `-${stats.grossLossR.toFixed(1)}R`}</span>
+          <span>Wins: {metricMode === 'amount' ? formatMoney(stats.grossWinAmount) : `+${stats.grossWinR.toFixed(1)}R`}</span>
+          <span>Losses: {metricMode === 'amount' ? formatMoney(stats.grossLossAmount !== null && stats.grossLossAmount !== undefined ? -stats.grossLossAmount : null) : `-${stats.grossLossR.toFixed(1)}R`}</span>
         </div>
       </div>
 
@@ -137,7 +154,7 @@ export function StatsMetricsGrid({
           </div>
         </div>
 
-        {/* Win/Loss Multi-segment Bar */}
+        {/* Multi-segment Bar */}
         <div className="w-full bg-canvas rounded-full h-1.5 mt-3 overflow-hidden flex">
           <div
             className="bg-emerald-500 h-full transition-all"
@@ -216,7 +233,74 @@ export function StatsMetricsGrid({
         </div>
       </div>
 
-      {/* 5. Avg Win / Avg Loss */}
+      {/* 5. Sharpe Ratio (MT5 Metric) */}
+      <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
+        <div className="flex items-center justify-between text-text-muted mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider">Sharpe Ratio</span>
+          <div className="w-8 h-8 rounded-[14px] bg-purple-500/10 text-purple-500 flex items-center justify-center">
+            <Zap size={16} />
+          </div>
+        </div>
+
+        <div>
+          <div
+            className={cn(
+              "text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight",
+              sharpeVal >= 1.5 ? "text-emerald-500" :
+              sharpeVal >= 1.0 ? "text-blue-500" :
+              sharpeVal > 0 ? "text-amber-500" : "text-rose-500"
+            )}
+          >
+            {stats.totalTrades < 2 ? '—' : sharpeVal.toFixed(2)}
+          </div>
+          <div className="text-[0.6875rem] text-text-muted mt-1">
+            {stats.totalTrades < 2 ? 'Needs 2+ trades' :
+             sharpeVal >= 2.0 ? 'Exceptional consistency' :
+             sharpeVal >= 1.5 ? 'High quality edge' :
+             sharpeVal >= 1.0 ? 'Good risk-return' :
+             sharpeVal > 0 ? 'Moderate stability' : 'High volatility'}
+          </div>
+        </div>
+
+        <div className="pt-3 mt-3 border-t border-border-card text-[0.6875rem] text-text-muted flex items-center justify-between">
+          <span>Risk-adjusted</span>
+          <span className="font-mono text-text-main">per-trade return</span>
+        </div>
+      </div>
+
+      {/* 6. Recovery Factor (MT5 Metric) */}
+      <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
+        <div className="flex items-center justify-between text-text-muted mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider">Recovery Factor</span>
+          <div className="w-8 h-8 rounded-[14px] bg-teal-500/10 text-teal-500 flex items-center justify-center">
+            <RotateCcw size={16} />
+          </div>
+        </div>
+
+        <div>
+          <div
+            className={cn(
+              "text-2xl sm:text-3xl font-bold font-mono tabular-nums tracking-tight",
+              recoveryVal >= 2.0 ? "text-emerald-500" :
+              recoveryVal >= 1.0 ? "text-blue-500" : "text-rose-500"
+            )}
+          >
+            {stats.totalTrades === 0 ? '—' : recoveryVal.toFixed(2)}
+          </div>
+          <div className="text-[0.6875rem] text-text-muted mt-1">
+            {recoveryVal >= 3.0 ? 'Fast DD recovery' :
+             recoveryVal >= 1.5 ? 'Healthy recovery' :
+             recoveryVal >= 1.0 ? 'Moderate recovery' : 'Below drawdown'}
+          </div>
+        </div>
+
+        <div className="pt-3 mt-3 border-t border-border-card text-[0.6875rem] text-text-muted flex items-center justify-between">
+          <span>Net Profit</span>
+          <span className="font-mono text-text-main">/ Max Drawdown</span>
+        </div>
+      </div>
+
+      {/* 7. Avg Win / Avg Loss */}
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Avg Win / Loss</span>
@@ -246,7 +330,7 @@ export function StatsMetricsGrid({
         </div>
       </div>
 
-      {/* 6. Max Drawdown */}
+      {/* 8. Max Drawdown & Pacing */}
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Max Drawdown</span>
@@ -259,10 +343,15 @@ export function StatsMetricsGrid({
           <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-rose-500 tracking-tight">
             -{stats.maxDrawdownR.toFixed(2)}R
           </div>
-          <div className="text-[0.6875rem] text-text-muted font-mono mt-1">
-            {stats.maxDrawdownAmount !== null && stats.maxDrawdownAmount !== undefined
-              ? `-${formatMoney(stats.maxDrawdownAmount)} (${(stats.maxDrawdownPercent ?? 0).toFixed(1)}%)`
-              : '—'}
+          <div className="text-[0.6875rem] text-text-muted font-mono mt-1 flex items-center justify-between">
+            <span>
+              {stats.maxDrawdownAmount !== null && stats.maxDrawdownAmount !== undefined
+                ? `-${formatMoney(stats.maxDrawdownAmount)} (${(stats.maxDrawdownPercent ?? 0).toFixed(1)}%)`
+                : '—'}
+            </span>
+            <span className="font-semibold text-text-main">
+              {stats.tradesPerWeek > 0 ? `${stats.tradesPerWeek}/wk` : '—'}
+            </span>
           </div>
         </div>
 

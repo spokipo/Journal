@@ -45,6 +45,7 @@ export function JournalView() {
   const [selectedSetups, setSelectedSetups] = useState<string[]>([]);
   const [selectedMistakes, setSelectedMistakes] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedTimeframes, setSelectedTimeframes] = useState<string[]>([]);
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
   const [accountsMap, setAccountsMap] = useState<Record<string, string>>({});
   const [selectedIdeaStatus, setSelectedIdeaStatus] = useState<string>('all');
@@ -178,6 +179,14 @@ export function JournalView() {
     if (!error) fetchData(user.id);
   };
 
+  const availableTimeframes = useMemo(() => {
+    const set = new Set<string>();
+    trades.forEach((t) => {
+      if (t.timeframe) set.add(t.timeframe);
+    });
+    return Array.from(set).sort();
+  }, [trades]);
+
   const filterSelectOptions = useMemo<SelectOption[]>(() => [
     ...(accounts.length > 0 ? [{
       value: 'cat_account',
@@ -206,6 +215,14 @@ export function JournalView() {
         { value: 'session:OFF_SESSION', label: 'Off-Session' },
       ],
     },
+    ...(availableTimeframes.length > 0 ? [{
+      value: 'cat_timeframe',
+      label: 'Timeframe',
+      children: availableTimeframes.map((tf) => ({
+        value: `timeframe:${tf}`,
+        label: tf,
+      })),
+    }] : []),
     {
       value: 'cat_setup',
       label: 'Setup',
@@ -222,20 +239,22 @@ export function JournalView() {
         label: name,
       })),
     },
-  ], [accounts, playbooks, mistakes]);
+  ], [accounts, playbooks, mistakes, availableTimeframes]);
 
   const selectedFilterValues = useMemo(() => [
     ...selectedAccounts.map((a) => `account:${a}`),
     ...selectedOutcomes.map((v) => `outcome:${v}`),
     ...selectedSessions.map((s) => `session:${s}`),
+    ...selectedTimeframes.map((tf) => `timeframe:${tf}`),
     ...selectedSetups.map((id) => `setup:${id}`),
     ...selectedMistakes.map((id) => `mistake:${id}`),
-  ], [selectedAccounts, selectedOutcomes, selectedSessions, selectedSetups, selectedMistakes]);
+  ], [selectedAccounts, selectedOutcomes, selectedSessions, selectedTimeframes, selectedSetups, selectedMistakes]);
 
   const handleFilterChange = (vals: string[]) => {
     const newAccounts: string[] = [];
     const newOutcomes: string[] = [];
     const newSessions: string[] = [];
+    const newTimeframes: string[] = [];
     const newSetups: string[] = [];
     const newMistakes: string[] = [];
 
@@ -243,6 +262,7 @@ export function JournalView() {
       if (v.startsWith('account:')) newAccounts.push(v.replace('account:', ''));
       if (v.startsWith('outcome:')) newOutcomes.push(v.replace('outcome:', ''));
       if (v.startsWith('session:')) newSessions.push(v.replace('session:', ''));
+      if (v.startsWith('timeframe:')) newTimeframes.push(v.replace('timeframe:', ''));
       if (v.startsWith('setup:')) newSetups.push(v.replace('setup:', ''));
       if (v.startsWith('mistake:')) newMistakes.push(v.replace('mistake:', ''));
     });
@@ -250,26 +270,29 @@ export function JournalView() {
     setSelectedAccounts(newAccounts);
     setSelectedOutcomes(newOutcomes);
     setSelectedSessions(newSessions);
+    setSelectedTimeframes(newTimeframes);
     setSelectedSetups(newSetups);
     setSelectedMistakes(newMistakes);
   };
 
-  const removeFilter = (type: 'account' | 'outcome' | 'session' | 'setup' | 'mistake', id: string) => {
+  const removeFilter = (type: 'account' | 'outcome' | 'session' | 'timeframe' | 'setup' | 'mistake', id: string) => {
     if (type === 'account') setSelectedAccounts((prev) => prev.filter((v) => v !== id));
     if (type === 'outcome') setSelectedOutcomes((prev) => prev.filter((v) => v !== id));
     if (type === 'session') setSelectedSessions((prev) => prev.filter((v) => v !== id));
+    if (type === 'timeframe') setSelectedTimeframes((prev) => prev.filter((v) => v !== id));
     if (type === 'setup') setSelectedSetups((prev) => prev.filter((v) => v !== id));
     if (type === 'mistake') setSelectedMistakes((prev) => prev.filter((v) => v !== id));
   };
 
   const activeFilterCount = activeTab === 'trades'
-    ? selectedAccounts.length + selectedOutcomes.length + selectedSessions.length + selectedSetups.length + selectedMistakes.length
+    ? selectedAccounts.length + selectedOutcomes.length + selectedSessions.length + selectedTimeframes.length + selectedSetups.length + selectedMistakes.length
     : (selectedIdeaStatus !== 'all' ? 1 : 0);
 
   const resetFilters = () => {
     setSelectedAccounts([]);
     setSelectedOutcomes([]);
     setSelectedSessions([]);
+    setSelectedTimeframes([]);
     setSelectedSetups([]);
     setSelectedMistakes([]);
     setSelectedIdeaStatus('all');
@@ -287,10 +310,11 @@ export function JournalView() {
         const matchesAccount = selectedAccounts.length === 0 || (t.account_id && selectedAccounts.includes(t.account_id));
         const matchesOutcome = selectedOutcomes.length === 0 || selectedOutcomes.includes(t.outcome);
         const matchesSession = selectedSessions.length === 0 || selectedSessions.includes(t.session);
+        const matchesTimeframe = selectedTimeframes.length === 0 || (t.timeframe && selectedTimeframes.includes(t.timeframe));
         const matchesSetup = selectedSetups.length === 0 || (t.setup_id && selectedSetups.includes(t.setup_id));
         const matchesMistake = selectedMistakes.length === 0 || (t.mistake_ids && t.mistake_ids.some((m) => selectedMistakes.includes(m)));
 
-        return matchesSearch && matchesAccount && matchesOutcome && matchesSession && matchesSetup && matchesMistake;
+        return matchesSearch && matchesAccount && matchesOutcome && matchesSession && matchesTimeframe && matchesSetup && matchesMistake;
       })
       .sort((a, b) => {
         if (sortBy === 'date_desc') return new Date(b.trade_date).getTime() - new Date(a.trade_date).getTime();
@@ -299,7 +323,7 @@ export function JournalView() {
         if (sortBy === 'pnl_asc') return getPnlR(a) - getPnlR(b);
         return 0;
       });
-  }, [trades, searchQuery, selectedAccounts, selectedOutcomes, selectedSessions, selectedSetups, selectedMistakes, sortBy, playbooks]);
+  }, [trades, searchQuery, selectedAccounts, selectedOutcomes, selectedSessions, selectedTimeframes, selectedSetups, selectedMistakes, sortBy, playbooks]);
 
   const filteredIdeas = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -458,6 +482,7 @@ export function JournalView() {
           selectedAccounts={selectedAccounts}
           selectedOutcomes={selectedOutcomes}
           selectedSessions={selectedSessions}
+          selectedTimeframes={selectedTimeframes}
           selectedSetups={selectedSetups}
           selectedMistakes={selectedMistakes}
           accountsMap={accountsMap}

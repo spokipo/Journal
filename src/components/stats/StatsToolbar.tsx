@@ -2,9 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar, 
-  Search,
-  Wallet,
-  Timer,
+  Search, 
+  Wallet, 
   X, 
   RotateCcw,
 } from 'lucide-react';
@@ -16,7 +15,6 @@ import type { TradingAccount, FilterState, PeriodType } from '../../lib/statsEng
 interface StatsToolbarProps {
   filters: FilterState;
   accounts: TradingAccount[];
-  availableTimeframes?: string[];
   metricMode: 'dual' | 'r' | 'amount';
   onMetricModeChange: (mode: 'dual' | 'r' | 'amount') => void;
   onFilterChange: (nextFilters: FilterState) => void;
@@ -35,7 +33,6 @@ const PERIOD_OPTIONS: { id: PeriodType; label: string }[] = [
 export function StatsToolbar({
   filters,
   accounts,
-  availableTimeframes = [],
   metricMode,
   onMetricModeChange,
   onFilterChange,
@@ -73,18 +70,6 @@ export function StatsToolbar({
     return opts;
   }, [accounts]);
 
-  const timeframeSelectOptions = useMemo<SelectOption[]>(() => {
-    const opts: SelectOption[] = [
-      { value: 'all', label: 'All Timeframes' },
-    ];
-    if (availableTimeframes && availableTimeframes.length > 0) {
-      availableTimeframes.forEach((tf) => {
-        opts.push({ value: tf, label: tf });
-      });
-    }
-    return opts;
-  }, [availableTimeframes]);
-
   const mobilePeriodOptions = useMemo<SelectOption[]>(() => {
     return PERIOD_OPTIONS.map((p) => ({
       value: p.id,
@@ -99,8 +84,7 @@ export function StatsToolbar({
   const hasActiveFilters =
     filters.period !== 'all' ||
     Boolean(filters.searchQuery) ||
-    (filters.accountId && filters.accountId !== 'all') ||
-    (filters.timeframe && filters.timeframe !== 'all');
+    (filters.accountId && filters.accountId !== 'all');
 
   return (
     <div className="space-y-3 w-full">
@@ -185,20 +169,6 @@ export function StatsToolbar({
             />
           </div>
 
-          {/* Timeframe Select */}
-          {timeframeSelectOptions.length > 1 && (
-            <div className="shrink-0 w-36">
-              <Select
-                size="sm"
-                icon={Timer}
-                align="right"
-                value={filters.timeframe || 'all'}
-                onChange={(val) => onFilterChange({ ...filters, timeframe: val })}
-                options={timeframeSelectOptions}
-              />
-            </div>
-          )}
-
           {/* Account Select */}
           <div className="shrink-0 w-44">
             <Select
@@ -218,10 +188,7 @@ export function StatsToolbar({
       {/* ==================================================================== */}
       <div className="flex md:hidden flex-col gap-3 w-full">
         {/* Row 1: Period Select & Account Select (h-11) */}
-        <div className={cn(
-          "grid gap-2 w-full",
-          timeframeSelectOptions.length > 1 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"
-        )}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
           <div>
             <Select
               size="md"
@@ -242,18 +209,6 @@ export function StatsToolbar({
               className="w-full"
             />
           </div>
-          {timeframeSelectOptions.length > 1 && (
-            <div>
-              <Select
-                size="md"
-                icon={Timer}
-                value={filters.timeframe || 'all'}
-                onChange={(val) => onFilterChange({ ...filters, timeframe: val })}
-                options={timeframeSelectOptions}
-                className="w-full"
-              />
-            </div>
-          )}
         </div>
 
         {/* Row 2: Search Input & Unit Select (h-11) */}
@@ -303,21 +258,6 @@ export function StatsToolbar({
                 onClick={() => onFilterChange({ ...filters, period: 'all', customStartDate: undefined, customEndDate: undefined })}
                 className="hover:text-rose-500 transition-colors cursor-pointer"
                 aria-label="Remove period filter"
-              >
-                <X size={13} />
-              </button>
-            </span>
-          )}
-
-          {/* Timeframe Chip */}
-          {filters.timeframe && filters.timeframe !== 'all' && (
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
-              <span>TF: {filters.timeframe}</span>
-              <button
-                type="button"
-                onClick={() => onFilterChange({ ...filters, timeframe: 'all' })}
-                className="hover:text-rose-500 transition-colors cursor-pointer"
-                aria-label="Remove timeframe filter"
               >
                 <X size={13} />
               </button>
