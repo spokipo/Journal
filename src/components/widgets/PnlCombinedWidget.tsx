@@ -27,36 +27,41 @@ export function PnlCombinedWidget({
 
   if (size === 'small') {
     return (
-      <WidgetCard size={size} className="justify-between items-center text-center">
-        <div className="w-full flex justify-between items-center pt-1 px-1">
+      <WidgetCard size={size} className="justify-between text-left">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+            {isPositive ? (
+              <TrendingUp size={14} className="text-emerald-500 shrink-0" />
+            ) : (
+              <TrendingDown size={14} className="text-rose-500 shrink-0" />
+            )}
+            <span>Net PnL</span>
+          </div>
           <span className={cn(
             "text-[0.6875rem] font-bold tabular-nums px-1.5 py-0.5 rounded-full",
             isPositive ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
           )}>
             {isPositive ? '+' : ''}{netPercent.toFixed(1)}%
           </span>
-          <div className={cn(
-            "p-1.5 rounded-full bg-canvas shrink-0",
-            isPositive ? "text-emerald-500" : "text-rose-500"
-          )}>
-            {isPositive ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-          </div>
         </div>
 
         <div className="my-auto">
           <div className={cn(
-            "text-2xl font-bold tabular-nums tracking-tight",
+            "text-xl font-bold tabular-nums tracking-tight",
             isPositive ? "text-emerald-500" : "text-rose-500"
           )}>
             {formatCurrency(netAmount, currencySymbol)}
           </div>
-          <div className="text-[0.6875rem] text-text-muted uppercase tracking-wider font-semibold mt-0.5">
-            Net PnL ({currencySymbol} & %)
+          <div className="text-xs text-text-muted mt-0.5 font-mono">
+            {stats?.totalTrades ?? 0} trades
           </div>
         </div>
 
-        <div className="text-[0.6875rem] text-text-muted font-mono">
-          {stats?.totalTrades ?? 0} trades
+        <div className="flex items-center justify-between text-[0.6875rem] text-text-muted font-mono pt-1 border-t border-border-card/40">
+          <span>Total Net R</span>
+          <span className={cn("font-bold", (stats?.netR ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500")}>
+            {(stats?.netR ?? 0) >= 0 ? '+' : ''}{(stats?.netR ?? 0).toFixed(1)}R
+          </span>
         </div>
       </WidgetCard>
     );
@@ -64,11 +69,11 @@ export function PnlCombinedWidget({
 
   return (
     <WidgetCard title="Net PnL Performance" size={size}>
-      <div className="flex items-center justify-between flex-1 gap-4">
-        <div>
-          <div className="flex items-baseline gap-2.5">
+      <div className="flex items-center justify-between flex-1 gap-4 h-full">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
             <span className={cn(
-              "text-3xl font-bold tabular-nums tracking-tight",
+              "text-2xl font-bold tabular-nums tracking-tight",
               isPositive ? "text-emerald-500" : "text-rose-500"
             )}>
               {formatCurrency(netAmount, currencySymbol)}
@@ -87,13 +92,16 @@ export function PnlCombinedWidget({
           </div>
         </div>
 
-        <div className="text-right shrink-0">
-          <div className="text-xs text-text-muted">Total Net R</div>
+        <div className="w-36 bg-canvas rounded-[14px] p-2.5 flex flex-col justify-center text-right shrink-0 h-full">
+          <div className="text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">Total Net R</div>
           <div className={cn(
-            "text-xl font-bold font-mono tabular-nums",
+            "text-xl font-bold font-mono tabular-nums mt-0.5",
             (stats?.netR ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"
           )}>
             {(stats?.netR ?? 0) >= 0 ? '+' : ''}{(stats?.netR ?? 0).toFixed(1)}R
+          </div>
+          <div className="text-[0.6875rem] text-text-muted font-mono mt-0.5">
+            {stats?.totalTrades ?? 0} trades
           </div>
         </div>
       </div>

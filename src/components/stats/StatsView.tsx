@@ -47,8 +47,8 @@ function StatsSkeleton() {
             key={i}
             className="h-28 bg-card border border-border-card rounded-[26px] p-4 flex flex-col justify-between"
           >
-            <div className="h-3.5 w-20 bg-canvas rounded-[10px]" />
-            <div className="h-6 w-24 bg-canvas rounded-[12px]" />
+            <div className="h-3.5 w-20 bg-canvas rounded-[14px]" />
+            <div className="h-6 w-24 bg-canvas rounded-[14px]" />
           </div>
         ))}
       </div>
@@ -56,20 +56,20 @@ function StatsSkeleton() {
       {/* Equity Chart Skeleton */}
       <div className="h-80 bg-card border border-border-card rounded-[26px] p-6 flex flex-col justify-between">
         <div className="flex items-center justify-between">
-          <div className="h-4 w-32 bg-canvas rounded-[10px]" />
-          <div className="h-4 w-20 bg-canvas rounded-[10px]" />
+          <div className="h-4 w-32 bg-canvas rounded-[14px]" />
+          <div className="h-4 w-20 bg-canvas rounded-[14px]" />
         </div>
         <div className="flex-1 w-full bg-canvas/60 rounded-[18px] my-4" />
         <div className="flex justify-between">
-          <div className="h-3 w-16 bg-canvas rounded-[8px]" />
-          <div className="h-3 w-16 bg-canvas rounded-[8px]" />
+          <div className="h-3 w-16 bg-canvas rounded-[14px]" />
+          <div className="h-3 w-16 bg-canvas rounded-[14px]" />
         </div>
       </div>
 
       {/* Breakdowns Skeleton */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-4">
-          <div className="h-4 w-36 bg-canvas rounded-[10px]" />
+          <div className="h-4 w-36 bg-canvas rounded-[14px]" />
           <div className="space-y-2.5">
             {[...Array(3)].map((_, idx) => (
               <div key={idx} className="h-10 bg-canvas/70 rounded-[14px]" />
@@ -77,7 +77,7 @@ function StatsSkeleton() {
           </div>
         </div>
         <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-4">
-          <div className="h-4 w-36 bg-canvas rounded-[10px]" />
+          <div className="h-4 w-36 bg-canvas rounded-[14px]" />
           <div className="space-y-2.5">
             {[...Array(3)].map((_, idx) => (
               <div key={idx} className="h-10 bg-canvas/70 rounded-[14px]" />
@@ -88,7 +88,7 @@ function StatsSkeleton() {
 
       {/* Trades Table Skeleton */}
       <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-3">
-        <div className="h-4 w-40 bg-canvas rounded-[10px]" />
+        <div className="h-4 w-40 bg-canvas rounded-[14px]" />
         <div className="space-y-2 pt-2">
           {[...Array(4)].map((_, idx) => (
             <div key={idx} className="h-11 bg-canvas/60 rounded-[14px]" />
@@ -281,7 +281,7 @@ export function StatsView() {
 
   return (
     <div className="space-y-6 pb-12 w-full max-w-[1280px] mx-auto">
-      {/* 1. Page Header */}
+      {/* 1. Page Header (§3 Page header) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-main">
@@ -293,7 +293,7 @@ export function StatsView() {
         </div>
       </div>
 
-      {/* 2. Toolbar */}
+      {/* 2. Toolbar (§3 Toolbar) */}
       <StatsToolbar
         filters={filters}
         accounts={accounts}
@@ -303,7 +303,7 @@ export function StatsView() {
         onResetFilters={handleResetFilters}
       />
 
-      {/* 3. Content Area: Skeleton -> Error -> Empty -> Content */}
+      {/* 3. Content Area: Skeleton -> Error -> Empty -> Content (§7) */}
       <AnimatePresence mode="wait">
         {isLoading ? (
           <motion.div
@@ -325,7 +325,7 @@ export function StatsView() {
             className="min-h-[50vh] flex items-center justify-center p-4"
           >
             <div className="bg-card border border-border-card rounded-[26px] p-8 max-w-md w-full text-center space-y-4 shadow-sm">
-              <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto">
                 <AlertCircle size={24} />
               </div>
               <div>
@@ -335,10 +335,10 @@ export function StatsView() {
               <button
                 type="button"
                 onClick={() => user && fetchData(user.id)}
-                className="h-10 px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-main hover:bg-canvas active:scale-[0.98] transition-all inline-flex items-center gap-2 cursor-pointer"
+                className="h-10 px-5 rounded-full bg-canvas border border-border-card text-xs font-semibold text-text-main hover:bg-card active:scale-[0.98] shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <RotateCcw size={14} />
-                Retry
+                <span>Retry</span>
               </button>
             </div>
           </motion.div>
@@ -351,8 +351,8 @@ export function StatsView() {
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className="bg-card border border-border-card rounded-[26px] p-10 text-center space-y-4 shadow-sm my-6"
           >
-            <div className="w-14 h-14 rounded-full bg-canvas flex items-center justify-center mx-auto text-text-muted">
-              <BarChart2 size={26} />
+            <div className="w-14 h-14 rounded-full bg-canvas border border-border-card flex items-center justify-center mx-auto text-text-muted">
+              <BarChart2 size={24} />
             </div>
             <div className="max-w-xs mx-auto">
               <h3 className="text-sm font-semibold text-text-main">No trades recorded yet</h3>
@@ -362,10 +362,10 @@ export function StatsView() {
             </div>
             <a
               href="/journal"
-              className="inline-flex items-center gap-2 h-10 px-5 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20"
+              className="inline-flex items-center justify-center gap-2 min-h-11 md:min-h-10 h-11 md:h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
-              <BookOpen size={14} />
-              Go to Journal
+              <BookOpen size={16} />
+              <span>Go to Journal</span>
             </a>
           </motion.div>
         ) : (
@@ -377,11 +377,11 @@ export function StatsView() {
             transition={{ duration: 0.18 }}
             className="space-y-6"
           >
-            {/* KPI Metrics Grid with Stagger */}
+            {/* KPI Metrics Grid with Band reveal (§3.1) */}
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, delay: 0.02, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             >
               <StatsMetricsGrid
                 stats={stats}
@@ -393,7 +393,7 @@ export function StatsView() {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.18, delay: 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
               <StatsEquityChart
                 equityCurve={stats.equityCurve}
@@ -406,7 +406,7 @@ export function StatsView() {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.18, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
             >
               <StatsBreakdowns
                 stats={stats}
@@ -418,7 +418,7 @@ export function StatsView() {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.18, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
             >
               <StatsTradesTable
                 trades={sortedTrades}

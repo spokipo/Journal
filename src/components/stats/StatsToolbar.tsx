@@ -57,7 +57,6 @@ export function StatsToolbar({
     });
   };
 
-  // Account options for Select
   const accountSelectOptions = useMemo<SelectOption[]>(() => {
     const opts: SelectOption[] = [
       { value: 'all', label: 'All Accounts' },
@@ -71,7 +70,6 @@ export function StatsToolbar({
     return opts;
   }, [accounts]);
 
-  // Mobile period select options (conforming to §9: 4+ items segmented control -> Select)
   const mobilePeriodOptions = useMemo<SelectOption[]>(() => {
     return PERIOD_OPTIONS.map((p) => ({
       value: p.id,
@@ -95,7 +93,7 @@ export function StatsToolbar({
       {/* ==================================================================== */}
       <div className="hidden md:flex items-center justify-between gap-3">
         {/* Left Side: Period Segmented Control (L1) */}
-        <div className="flex items-center gap-1 bg-card border border-border-card rounded-[18px] p-1 shrink-0">
+        <div className="flex items-center gap-1 bg-card border border-border-card rounded-full p-1 shrink-0 h-9">
           {PERIOD_OPTIONS.map((item) => {
             const isActive = filters.period === item.id;
             return (
@@ -104,14 +102,14 @@ export function StatsToolbar({
                 type="button"
                 onClick={() => handlePeriodSelect(item.id)}
                 className={cn(
-                  "relative h-7 px-3 text-xs font-medium rounded-[14px] transition-colors whitespace-nowrap select-none cursor-pointer flex items-center justify-center",
+                  "relative h-7 px-3 text-xs font-medium rounded-full transition-colors whitespace-nowrap select-none cursor-pointer flex items-center justify-center",
                   isActive ? "text-white font-semibold" : "text-text-muted hover:text-text-main"
                 )}
               >
                 {isActive && (
                   <motion.div
-                    layoutId="stats-period-pill"
-                    className="absolute inset-0 bg-blue-500 rounded-[14px] shadow-sm"
+                    layoutId="stats-toolbar-period-pill"
+                    className="absolute inset-0 bg-blue-500 rounded-full shadow-xs"
                     transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                   />
                 )}
@@ -128,8 +126,8 @@ export function StatsToolbar({
 
         {/* Right Side: Unit Toggle, Search, and Account Select */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Unit Toggle: Dual / R / $ */}
-          <div className="flex items-center gap-0.5 bg-card border border-border-card rounded-[18px] p-1 shrink-0">
+          {/* Unit Toggle: Dual / R / $ (h-9 L1 container, h-7 inner control §2) */}
+          <div className="flex items-center gap-0.5 bg-card border border-border-card rounded-full p-1 shrink-0 h-9">
             {[
               { id: 'dual', label: 'Dual' },
               { id: 'r', label: 'R-Multiple' },
@@ -142,14 +140,14 @@ export function StatsToolbar({
                   type="button"
                   onClick={() => onMetricModeChange(mode.id as any)}
                   className={cn(
-                    "relative h-7 px-2.5 text-xs font-medium rounded-[14px] transition-colors select-none cursor-pointer flex items-center justify-center",
+                    "relative h-7 px-3 text-xs font-medium rounded-full transition-colors select-none cursor-pointer flex items-center justify-center",
                     isActive ? "text-blue-500 font-semibold" : "text-text-muted hover:text-text-main"
                   )}
                 >
                   {isActive && (
                     <motion.div
-                      layoutId="stats-unit-pill"
-                      className="absolute inset-0 bg-blue-500/10 rounded-[14px]"
+                      layoutId="stats-toolbar-metric-mode"
+                      className="absolute inset-0 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-xs"
                       transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                     />
                   )}
@@ -167,11 +165,11 @@ export function StatsToolbar({
               value={filters.searchQuery || ''}
               onChange={(e) => onFilterChange({ ...filters, searchQuery: e.target.value })}
               placeholder="Search ticker..."
-              className="w-full h-9 pl-8 pr-3 bg-card border border-border-card rounded-[18px] text-xs font-medium text-text-main placeholder:text-text-muted outline-none focus:border-blue-500 transition-colors"
+              className="w-full h-9 pl-8 pr-3 bg-card border border-border-card rounded-full text-xs font-medium text-text-main placeholder:text-text-muted outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
-          {/* Account Select (Replaces Filter select) */}
+          {/* Account Select */}
           <div className="shrink-0 w-44">
             <Select
               size="sm"
@@ -189,9 +187,8 @@ export function StatsToolbar({
       {/* MOBILE TOOLBAR (< md): Strict §9 compliance (No horizontal scroll, >= 44px) */}
       {/* ==================================================================== */}
       <div className="flex md:hidden flex-col gap-2.5 w-full">
-        {/* Row 1: Period Select (replaces horizontal scroll per §9) & Account Select */}
+        {/* Row 1: Period Select & Account Select (h-11) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-          {/* Period Select for mobile */}
           <div>
             <Select
               size="md"
@@ -202,7 +199,6 @@ export function StatsToolbar({
             />
           </div>
 
-          {/* Account Select for mobile */}
           <div>
             <Select
               size="md"
@@ -214,7 +210,7 @@ export function StatsToolbar({
           </div>
         </div>
 
-        {/* Row 2: Search input + Unit toggle (Full width, no horizontal scroll, min-h-11) */}
+        {/* Row 2: Search input + Unit toggle (Каждый элемент ровно h-11, форма rounded-full) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
           {/* Search Input */}
           <div className="relative w-full">
@@ -224,12 +220,12 @@ export function StatsToolbar({
               value={filters.searchQuery || ''}
               onChange={(e) => onFilterChange({ ...filters, searchQuery: e.target.value })}
               placeholder="Search ticker..."
-              className="w-full min-h-11 pl-9 pr-3 bg-card border border-border-card rounded-[18px] text-xs font-medium text-text-main placeholder:text-text-muted outline-none focus:border-blue-500 transition-colors"
+              className="w-full h-11 pl-10 pr-3 bg-card border border-border-card rounded-full text-xs font-medium text-text-main placeholder:text-text-muted outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
-          {/* Unit 3-Mode Toggle on Mobile (>= 44px hit area per §9) */}
-          <div className="grid grid-cols-3 gap-1 bg-card border border-border-card rounded-[18px] p-1 min-h-11 items-center">
+          {/* Unit 3-Mode Toggle on Mobile (Full 44px touch targets, rounded-full, animated indicator) */}
+          <div className="grid grid-cols-3 gap-1 bg-card border border-border-card rounded-full p-1 h-11 items-center">
             {[
               { id: 'dual', label: 'Dual' },
               { id: 'r', label: 'R' },
@@ -242,11 +238,18 @@ export function StatsToolbar({
                   type="button"
                   onClick={() => onMetricModeChange(mode.id as any)}
                   className={cn(
-                    "relative min-h-[36px] px-2 text-xs font-semibold rounded-[14px] transition-colors select-none cursor-pointer flex items-center justify-center",
-                    isActive ? "bg-blue-500/15 text-blue-500" : "text-text-muted hover:text-text-main"
+                    "relative h-9 px-2 text-xs font-semibold rounded-full transition-colors select-none cursor-pointer flex items-center justify-center",
+                    isActive ? "text-blue-500" : "text-text-muted hover:text-text-main"
                   )}
                 >
-                  {mode.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="stats-toolbar-metric-mode-mobile"
+                      className="absolute inset-0 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-xs"
+                      transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    />
+                  )}
+                  <span className="relative z-10">{mode.label}</span>
                 </button>
               );
             })}
@@ -265,7 +268,7 @@ export function StatsToolbar({
 
           {/* Period Chip */}
           {filters.period !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[12px] bg-card border border-border-card text-xs text-text-main">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
               <span>Period: {filters.period === 'custom' ? `${filters.customStartDate} → ${filters.customEndDate}` : filters.period}</span>
               <button
                 type="button"
@@ -280,7 +283,7 @@ export function StatsToolbar({
 
           {/* Account Chip */}
           {filters.accountId && filters.accountId !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[12px] bg-card border border-border-card text-xs text-text-main">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
               <span>Account: {activeAccount ? activeAccount.name : filters.accountId}</span>
               <button
                 type="button"
@@ -295,7 +298,7 @@ export function StatsToolbar({
 
           {/* Search Query Chip */}
           {filters.searchQuery && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[12px] bg-card border border-border-card text-xs text-text-main">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
               <span>Ticker: "{filters.searchQuery}"</span>
               <button
                 type="button"
@@ -312,7 +315,7 @@ export function StatsToolbar({
           <button
             type="button"
             onClick={onResetFilters}
-            className="text-xs text-blue-500 hover:underline flex items-center gap-1 ml-1 cursor-pointer min-h-[32px]"
+            className="text-xs text-blue-500 hover:underline flex items-center gap-1 ml-1 cursor-pointer min-h-8"
           >
             <RotateCcw size={12} />
             Reset all

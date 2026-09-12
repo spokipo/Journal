@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '../../../lib/utils';
 
 export function Sparkline({ 
   points, 
@@ -31,17 +32,19 @@ export function Sparkline({
   });
 
   const pathD = `M ${coords.join(' L ')}`;
-  const strokeColor = isPositive ? '#10b981' : '#f43f5e';
-  const fillColor = isPositive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(244, 63, 94, 0.12)';
   const areaD = `${pathD} L ${(width - padding).toFixed(1)},${height} L ${padding},${height} Z`;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
-      {fill && <path d={areaD} fill={fillColor} />}
+    <svg 
+      viewBox={`0 0 ${width} ${height}`} 
+      className={cn("w-full h-full overflow-visible", isPositive ? "text-emerald-500" : "text-rose-500")} 
+      preserveAspectRatio="none"
+    >
+      {fill && <path d={areaD} fill="currentColor" fillOpacity="0.12" />}
       <path
         d={pathD}
         fill="none"
-        stroke={strokeColor}
+        stroke="currentColor"
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"

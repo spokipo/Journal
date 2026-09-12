@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
+  Check,
   BookMarked, 
   Loader2, 
   UploadCloud, 
@@ -35,8 +36,12 @@ export interface PlaybookModalProps {
   }) => Promise<void>;
 }
 
-// System motion tokens (§2 & §5)
-const modalTransition = { duration: 0.18, ease: [0.16, 1, 0.3, 1] };
+// Motion tokens (§2 & §5)
+const modalTransition = { 
+  duration: 0.18, 
+  ease: [0.16, 1, 0.3, 1],
+  layout: { type: 'spring', stiffness: 450, damping: 35 }
+};
 const backdropTransition = { duration: 0.15 };
 
 export function PlaybookModal({
@@ -80,7 +85,7 @@ export function PlaybookModal({
     return lockBodyScroll();
   }, [isOpen]);
 
-  // Keyboard accessibility: Escape closes confirm or modal (§9)
+  // Keyboard accessibility: Escape closes confirm or modal (§5, §9)
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -115,7 +120,6 @@ export function PlaybookModal({
       setUploadError(null);
       setShowDeleteConfirm(false);
 
-      // Focus first input after open
       const timer = setTimeout(() => {
         titleInputRef.current?.focus();
       }, 50);
@@ -258,9 +262,9 @@ export function PlaybookModal({
     setScreenshots((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!title.trim() || isSaving || isUploading) return;
 
     setIsSaving(true);
     try {
@@ -298,12 +302,13 @@ export function PlaybookModal({
               exit={{ opacity: 0 }}
               transition={backdropTransition}
               onClick={onClose}
-              className="absolute inset-0 bg-black/60"
+              className="absolute inset-0 bg-black/60 hidden md:block"
               aria-hidden="true"
             />
 
             {/* Modal Dialog (design.md §5: Short form md:w-[480px], L2 rounded-[26px], mobile 100dvh rounded-none) */}
             <motion.div
+              layout
               key="playbook-modal-panel"
               role="dialog"
               aria-modal="true"
@@ -312,38 +317,73 @@ export function PlaybookModal({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
               transition={modalTransition}
-              className="relative w-full h-[100dvh] md:h-auto md:max-h-[85vh] md:w-[480px] bg-card rounded-none md:rounded-[26px] md:border md:border-border-card shadow-2xl overflow-hidden flex flex-col z-10 text-text-main"
-              style={{ 
-                paddingTop: 'env(safe-area-inset-top, 0px)',
-                paddingBottom: 'env(safe-area-inset-bottom, 0px)' 
-              }}
+              className="relative w-full h-[100dvh] md:h-auto md:max-h-[85vh] md:w-[480px] bg-card text-text-main rounded-none md:rounded-[26px] md:border md:border-border-card shadow-2xl overflow-hidden flex flex-col z-10"
             >
-              {/* Header (§5: px-6 py-5 mobile -> px-8 py-6 desktop) */}
-              <div className="flex items-center justify-between px-6 py-5 md:px-8 md:py-6 border-b border-border-card shrink-0">
+              {/* --- DESKTOP HEADER (§5: px-8 py-6, border-b, осязаемая L1 icon-button w-10 h-10) --- */}
+              <div className="hidden md:flex items-center justify-between px-8 py-6 border-b border-border-card shrink-0 bg-card z-20">
                 <div className="flex items-center gap-3 min-w-0">
-                  {/* Icon badge: L0 rounded-[14px], 18px icon (§2 & §4) */}
-                  <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-[14px] bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
                     <BookMarked size={18} />
                   </div>
                   <h2 id="playbook-modal-title" className="text-base font-semibold text-text-main truncate">
                     {editingSetup ? 'Edit Setup' : 'New Trading Setup'}
                   </h2>
                 </div>
-                {/* Touch target: 44x44px mobile -> 36x36px desktop (§9) */}
                 <button
                   type="button"
                   onClick={onClose}
                   aria-label="Close modal"
-                  className="min-w-11 min-h-11 md:min-w-0 md:min-h-0 w-11 h-11 md:w-9 md:h-9 rounded-full bg-card md:bg-transparent border border-border-card md:border-transparent flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+                  className="w-10 h-10 rounded-full bg-canvas border border-border-card text-text-muted hover:text-text-main hover:bg-card active:scale-95 shadow-xs flex items-center justify-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                   <X size={18} />
                 </button>
               </div>
 
+              {/* --- MOBILE HEADER (§5: h-16 sticky top-0 px-4 bg-card/60 backdrop-blur-xl без border-b) --- */}
+              <div 
+                className="md:hidden flex items-center justify-between px-4 sticky top-0 z-20 bg-card/60 backdrop-blur-xl shrink-0"
+                style={{ 
+                  paddingTop: 'env(safe-area-inset-top, 0px)',
+                  height: 'calc(4rem + env(safe-area-inset-top, 0px))'
+                }}
+              >
+                {/* Слот 1 (Слева): L1 Cancel/Close button */}
+                <button 
+                  type="button" 
+                  onClick={onClose}
+                  aria-label={editingSetup ? 'Cancel editing' : 'Close modal'}
+                  className="w-11 h-11 rounded-full flex items-center justify-center bg-canvas border border-border-card text-text-main hover:bg-card active:scale-95 shadow-xs transition-all shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  <X size={18} />
+                </button>
+                
+                {/* Слот 2 (Центр): Title */}
+                <h2 className="text-base font-semibold text-text-main truncate px-3 text-center flex-1">
+                  {editingSetup ? 'Edit Setup' : 'New Setup'}
+                </h2>
+                
+                {/* Слот 3 (Справа): L1 Save/Create Primary button */}
+                <button 
+                  type="button"
+                  onClick={() => handleSubmit()}
+                  disabled={isSaving || isUploading || !title.trim()}
+                  aria-label={editingSetup ? 'Save changes' : 'Create setup'}
+                  className={cn(
+                    "w-11 h-11 rounded-full flex items-center justify-center bg-blue-500 border border-blue-500 text-white active:scale-95 shadow-xs transition-all shrink-0 cursor-pointer hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                    (isSaving || isUploading || !title.trim()) && "opacity-50 pointer-events-none"
+                  )}
+                >
+                  {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                </button>
+              </div>
+
               {/* Form Body with custom scrollbar */}
-              <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-                <div className="px-6 py-5 md:px-8 md:py-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
-                  {/* Title Field (L1 control: rounded-[18px]) */}
+              <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div 
+                  className="px-6 py-5 md:px-8 md:py-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar flex flex-col"
+                  style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}
+                >
+                  {/* Title Field */}
                   <div className="space-y-1.5">
                     <label 
                       htmlFor="setup-title-input" 
@@ -359,7 +399,7 @@ export function PlaybookModal({
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="e.g. London Breakout, Bull Flag, Order Block"
-                      className="w-full min-h-11 md:min-h-0 h-11 md:h-10 bg-canvas border border-border-card rounded-[18px] px-4 text-sm text-text-main placeholder:text-text-muted/60 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 transition-all"
+                      className="w-full h-11 md:h-10 bg-canvas border border-border-card rounded-[18px] px-4 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
                     />
                   </div>
 
@@ -377,14 +417,14 @@ export function PlaybookModal({
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Describe market conditions, indicators, trigger candles, risk management rules..."
-                      className="w-full bg-canvas border border-border-card rounded-[18px] p-3.5 text-sm text-text-main placeholder:text-text-muted/60 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 transition-all resize-none custom-scrollbar"
+                      className="w-full bg-canvas border border-border-card rounded-[18px] p-4 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all resize-none custom-scrollbar"
                     />
                   </div>
 
                   {/* Status Toggle using standard Switch (§4: min-h-11 row wrapper) */}
                   <div 
                     onClick={() => setIsActive(!isActive)}
-                    className="flex items-center justify-between p-4 bg-canvas border border-border-card rounded-[18px] cursor-pointer select-none min-h-11 hover:bg-canvas/80 transition-colors"
+                    className="flex items-center justify-between p-4 bg-canvas border border-border-card rounded-[18px] cursor-pointer select-none min-h-11 hover:bg-card transition-colors shadow-xs"
                   >
                     <div>
                       <h3 className="text-sm font-medium text-text-main">Active Strategy</h3>
@@ -412,7 +452,7 @@ export function PlaybookModal({
                         )}
                       </label>
                       <span className="text-[0.6875rem] text-text-muted hidden sm:inline">
-                        Paste: <kbd className="px-1.5 py-0.5 rounded-[6px] bg-canvas border border-border-card font-mono text-[0.6875rem]">Ctrl+V</kbd>
+                        Paste: <kbd className="px-2 py-0.5 rounded-[14px] bg-canvas border border-border-card font-mono text-[0.6875rem]">Ctrl+V</kbd>
                       </span>
                     </div>
 
@@ -430,7 +470,7 @@ export function PlaybookModal({
                         "border border-dashed rounded-[18px] p-4 md:p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500",
                         isDragging 
                           ? "border-blue-500 bg-blue-500/5" 
-                          : "border-border-card hover:border-blue-500/50 hover:bg-canvas/50 bg-canvas/30"
+                          : "border-border-card hover:border-blue-500/50 hover:bg-card bg-canvas/40"
                       )}
                     >
                       <input
@@ -451,8 +491,8 @@ export function PlaybookModal({
                         </div>
                       ) : (
                         <>
-                          <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mb-0.5 pointer-events-none">
-                            <UploadCloud size={20} />
+                          <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center mb-0.5 pointer-events-none">
+                            <UploadCloud size={18} />
                           </div>
                           <div className="text-xs font-medium text-text-main pointer-events-none">
                             <span className="text-blue-500 font-semibold hover:underline">
@@ -471,13 +511,13 @@ export function PlaybookModal({
                       <p className="text-xs text-rose-500 mt-1 font-medium">{uploadError}</p>
                     )}
 
-                    {/* Uploaded Thumbnails Grid */}
+                    {/* Uploaded Thumbnails Grid (L0 rounded-[14px]) */}
                     {screenshots.length > 0 && (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
                         {screenshots.map((url, idx) => (
                           <div
                             key={idx}
-                            className="relative aspect-video rounded-[14px] overflow-hidden border border-border-card bg-canvas group shadow-sm"
+                            className="relative aspect-video rounded-[14px] overflow-hidden border border-border-card bg-canvas group shadow-xs"
                           >
                             <img
                               src={url}
@@ -486,7 +526,7 @@ export function PlaybookModal({
                               onClick={() => setPreviewImageUrl(url)}
                             />
 
-                            {/* Hover action overlay — gap-2 canonical (§2) */}
+                            {/* Hover action overlay */}
                             <div 
                               onClick={() => setPreviewImageUrl(url)}
                               className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 cursor-pointer text-white text-[0.6875rem] font-medium"
@@ -495,11 +535,7 @@ export function PlaybookModal({
                               <span>View</span>
                             </div>
 
-                            {/* 
-                              Delete Button (§9 Touch target compliance):
-                              Hit target area is min 44x44px (-top-2 -right-2 p-2)
-                              Visual button is L0 circle 28x28px
-                            */}
+                            {/* Delete Button (§9 Touch target min 44x44px) */}
                             <div className="absolute top-0 right-0 p-1 z-10">
                               <button
                                 type="button"
@@ -511,7 +547,7 @@ export function PlaybookModal({
                                 title="Remove screenshot"
                                 aria-label={`Remove screenshot ${idx + 1}`}
                               >
-                                <div className="w-7 h-7 rounded-full bg-black/70 group-hover/btn:bg-rose-500 text-white flex items-center justify-center transition-colors shadow">
+                                <div className="w-7 h-7 rounded-full bg-black/70 group-hover/btn:bg-rose-500 text-white flex items-center justify-center transition-colors shadow-xs">
                                   <Trash2 size={13} />
                                 </div>
                               </button>
@@ -521,39 +557,53 @@ export function PlaybookModal({
                       </div>
                     )}
                   </div>
+
+                  {/* Одиночное деструктивное действие внизу скроллируемого тела на mobile (§5: L1 h-11) */}
+                  {editingSetup && onDelete && (
+                    <div className="md:hidden mt-auto pt-8 pb-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="w-full h-11 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                        aria-label="Delete Setup"
+                      >
+                        <Trash2 size={16} />
+                        <span>Delete Setup</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Actions Footer (§5: px-6 py-4 mobile -> px-8 py-5 desktop) */}
-                <div className="px-6 py-4 md:px-8 md:py-5 border-t border-border-card flex items-center justify-between gap-3 shrink-0">
+                {/* --- DESKTOP ACTIONS FOOTER (§5: на mobile отсутствует, desktop px-8 py-5) --- */}
+                <div className="hidden md:flex px-8 py-5 border-t border-border-card items-center justify-between gap-3 shrink-0 bg-card z-20">
                   <div>
                     {editingSetup && onDelete && (
                       <button
                         type="button"
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="min-w-11 min-h-11 md:min-w-0 md:min-h-0 h-11 md:h-10 w-11 md:w-auto md:px-3.5 flex items-center justify-center bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-[18px] transition-colors cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20"
+                        className="h-10 px-5 rounded-full bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-500 text-sm font-medium flex items-center gap-2 transition-all cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                         title="Delete Setup"
                         aria-label="Delete Setup"
                       >
                         <Trash2 size={16} />
+                        <span>Delete</span>
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center justify-end gap-3 ml-auto flex-1 sm:flex-initial">
-                    {/* Secondary Button (§4 & §9) */}
+                  <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="flex-1 sm:flex-initial min-h-11 md:min-h-0 h-11 md:h-10 px-4 flex items-center justify-center bg-card border border-border-card text-text-muted hover:text-text-main hover:bg-canvas rounded-[18px] font-medium text-xs md:text-sm active:scale-[0.98] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+                      className="h-10 px-5 rounded-full bg-card border border-border-card text-sm font-medium text-text-muted hover:text-text-main hover:bg-canvas transition-all cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
                       Cancel
                     </button>
-                    {/* Primary Button (§4 & §9) */}
                     <button
                       type="submit"
                       disabled={isSaving || isUploading || !title.trim()}
-                      className="flex-1 sm:flex-initial min-h-11 md:min-h-0 h-11 md:h-10 px-5 flex items-center justify-center gap-2 bg-blue-500 text-white rounded-[18px] font-semibold text-xs md:text-sm hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                      className="h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer disabled:opacity-50 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
-                      {isSaving && <Loader2 size={16} className="animate-spin" />}
+                      {isSaving && <Loader2 size={16} className="animate-spin shrink-0" />}
                       <span>{editingSetup ? 'Save Changes' : 'Create Setup'}</span>
                     </button>
                   </div>
@@ -561,7 +611,7 @@ export function PlaybookModal({
               </form>
             </motion.div>
 
-            {/* Confirm Delete Dialog (§5 Confirm dialog: md:w-[380px], L2 rounded-[26px]) */}
+            {/* Confirm Delete Dialog (§5 Confirm dialog: md:w-[380px], L2 rounded-[26px], rounded-full buttons) */}
             <AnimatePresence>
               {showDeleteConfirm && (
                 <div 
@@ -588,9 +638,8 @@ export function PlaybookModal({
                     transition={modalTransition}
                     className="relative w-full max-w-[380px] bg-card border border-border-card rounded-[26px] p-6 shadow-2xl z-10 flex flex-col gap-4 text-text-main"
                   >
-                    {/* Gap canonical: gap-3 instead of gap-3.5 */}
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-[14px] bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-[14px] bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
                         <AlertTriangle size={20} />
                       </div>
                       <div className="space-y-1">
@@ -603,13 +652,12 @@ export function PlaybookModal({
                       </div>
                     </div>
 
-                    {/* Gap canonical: gap-2 instead of gap-2.5 */}
-                    <div className="pt-2 flex items-center justify-end gap-2">
+                    <div className="pt-2 flex items-center justify-end gap-3">
                       <button
                         type="button"
                         onClick={() => setShowDeleteConfirm(false)}
                         disabled={isDeleting}
-                        className="min-h-11 md:min-h-0 h-11 md:h-10 px-4 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+                        className="min-h-11 md:min-h-0 h-11 md:h-10 px-5 rounded-full bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-all cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       >
                         Cancel
                       </button>
@@ -617,7 +665,7 @@ export function PlaybookModal({
                         type="button"
                         onClick={handleConfirmDelete}
                         disabled={isDeleting}
-                        className="min-h-11 md:min-h-0 h-11 md:h-10 px-4 rounded-[18px] bg-rose-500 text-white text-xs font-semibold hover:bg-rose-600 active:scale-[0.98] transition-all shadow-sm shadow-rose-500/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
+                        className="min-h-11 md:min-h-0 h-11 md:h-10 px-5 rounded-full bg-rose-500 border border-rose-500 text-white text-xs font-semibold hover:bg-rose-600 active:scale-[0.98] transition-all shadow-sm shadow-rose-500/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                       >
                         {isDeleting ? (
                           <>

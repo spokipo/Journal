@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -19,7 +20,6 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Plus,
   GripVertical,
-  ChevronRight,
 } from 'lucide-react';
 import { type SystemSection, getSectionIcon } from './types';
 import { SectionContextMenu } from './SectionContextMenu';
@@ -132,7 +132,7 @@ function DesktopSortableItem({
           onDelete={onDelete}
           isCompact={true}
           iconSize={14}
-          triggerClassName="w-7 h-7 rounded-[8px] flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas cursor-pointer transition-colors opacity-70 group-hover:opacity-100"
+          triggerClassName="w-8 h-8 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-card active:scale-95 shadow-xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
         />
       </div>
     </div>
@@ -234,7 +234,7 @@ export function SectionNav({
       <button
         type="button"
         onClick={onAddSection}
-        className="w-full h-10 rounded-[18px] border border-dashed border-border-card flex items-center justify-center gap-2 text-xs font-semibold text-text-muted hover:text-blue-500 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer mt-2"
+        className="w-full h-10 rounded-full border border-dashed border-border-card flex items-center justify-center gap-2 text-xs font-semibold text-text-muted hover:text-blue-500 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer mt-2"
       >
         <Plus size={14} />
         <span>Add Section</span>
@@ -271,7 +271,16 @@ function MobileRow({
   const IconComponent = getSectionIcon(section.icon);
 
   return (
-    <div className="relative flex items-center justify-between rounded-[18px] bg-card border border-border-card transition-all select-none shadow-2xs hover:border-blue-500/30">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.18,
+        delay: Math.min(index * 0.03, 0.24),
+        ease: [0.16, 1, 0.3, 1],
+      }}
+      className="relative flex items-center justify-between rounded-[18px] bg-card border border-border-card transition-all select-none shadow-2xs hover:border-blue-500/30"
+    >
       {/* Clickable section area (opens section detail screen) */}
       <button
         type="button"
@@ -294,8 +303,8 @@ function MobileRow({
         </div>
       </button>
 
-      {/* Submenu ("...") Anchored Context Menu + Disclosure Chevron */}
-      <div className="flex items-center pr-2 shrink-0">
+      {/* Submenu ("...") Anchored Context Menu */}
+      <div className="flex items-center pr-3 shrink-0">
         <SectionContextMenu
           section={section}
           canMoveUp={index > 0}
@@ -305,21 +314,11 @@ function MobileRow({
           onEdit={onEdit}
           onDelete={onDelete}
           isCompact={false}
-          iconSize={18}
-          triggerClassName="w-11 h-11 min-w-11 min-h-11 rounded-[14px] flex items-center justify-center text-text-muted hover:text-text-main active:bg-canvas cursor-pointer transition-colors"
+          iconSize={16}
+          triggerClassName="w-11 h-11 min-w-11 min-h-11 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-card active:scale-95 shadow-xs transition-all cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         />
-
-        {/* Disclosure chevron (tapping also opens section) */}
-        <button
-          type="button"
-          onClick={onSelect}
-          aria-label={`Open ${section.title}`}
-          className="w-8 h-11 min-h-11 flex items-center justify-center text-text-muted/40 hover:text-text-main cursor-pointer"
-        >
-          <ChevronRight size={18} />
-        </button>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

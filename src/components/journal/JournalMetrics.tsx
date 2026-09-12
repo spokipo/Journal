@@ -29,7 +29,7 @@ export function JournalMetrics({
       <AnimatePresence mode="wait">
         {isLoading ? (
           <motion.div
-            key="metrics-loading"
+            key="journal-metrics-loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -39,18 +39,21 @@ export function JournalMetrics({
           </motion.div>
         ) : activeTab === 'trades' ? (
           <motion.div
-            key="trades-metrics"
+            key="journal-trades-metrics"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3"
           >
+            {/* L2 Interactive Card (Type C Metrics §3, §4 Card: rounded-[26px], p-3 sm:p-4) */}
             <button
               type="button"
               onClick={onToggleOutcomeBreakdown}
+              aria-expanded={showOutcomeBreakdown}
+              aria-label="Toggle trades breakdown by outcome"
               className={cn(
-                "flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border rounded-[26px] text-left transition-all cursor-pointer select-none group active:scale-[0.98]",
+                "flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border rounded-[26px] text-left transition-all cursor-pointer select-none group active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                 showOutcomeBreakdown
                   ? "border-blue-500/60 bg-blue-500/[0.04] shadow-xs"
                   : "border-border-card hover:border-blue-500/30 hover:bg-canvas/40"
@@ -62,7 +65,7 @@ export function JournalMetrics({
                   Trades
                 </span>
                 <ChevronsUpDown
-                  size={12}
+                  size={14}
                   className={cn(
                     "transition-transform duration-200 shrink-0",
                     showOutcomeBreakdown ? "text-blue-500 rotate-180" : "text-text-muted/40 group-hover:text-text-muted"
@@ -76,17 +79,22 @@ export function JournalMetrics({
 
             <AnimatePresence mode="wait" initial={false}>
               {!showOutcomeBreakdown ? (
-                <React.Fragment key="standard-metrics">
+                <React.Fragment key="journal-standard-metrics">
                   <motion.div
                     key="metric-winrate"
                     initial={{ opacity: 0, scale: 0.96, y: 3 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: -3 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]"
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]"
                   >
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Win Rate</span>
-                    <div className={cn("text-base sm:text-xl font-bold font-mono tabular-nums", stats.winRate >= 50 ? "text-emerald-500" : "text-rose-500")}>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                      Win Rate
+                    </span>
+                    <div className={cn(
+                      "text-base sm:text-xl font-bold font-mono tabular-nums",
+                      stats.winRate >= 50 ? "text-emerald-500" : "text-rose-500"
+                    )}>
                       {stats.winRate}%
                     </div>
                   </motion.div>
@@ -96,11 +104,16 @@ export function JournalMetrics({
                     initial={{ opacity: 0, scale: 0.96, y: 3 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: -3 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]"
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]"
                   >
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Net PnL</span>
-                    <div className={cn("text-base sm:text-xl font-bold font-mono tabular-nums", stats.netR >= 0 ? "text-emerald-500" : "text-rose-500")}>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                      Net PnL
+                    </span>
+                    <div className={cn(
+                      "text-base sm:text-xl font-bold font-mono tabular-nums",
+                      stats.netR >= 0 ? "text-emerald-500" : "text-rose-500"
+                    )}>
                       {stats.netR > 0 ? `+${stats.netR} R` : `${stats.netR} R`}
                     </div>
                   </motion.div>
@@ -110,10 +123,12 @@ export function JournalMetrics({
                     initial={{ opacity: 0, scale: 0.96, y: 3 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: -3 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]"
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]"
                   >
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">PnL %</span>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                      PnL %
+                    </span>
                     <div className={cn(
                       "text-base sm:text-xl font-bold font-mono tabular-nums",
                       stats.netPercent >= 0 ? "text-emerald-500" : "text-rose-500"
@@ -123,16 +138,18 @@ export function JournalMetrics({
                   </motion.div>
                 </React.Fragment>
               ) : (
-                <React.Fragment key="outcome-metrics">
+                <React.Fragment key="journal-outcome-metrics">
                   <motion.div
                     key="metric-tp"
                     initial={{ opacity: 0, scale: 0.96, y: 3 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: -3 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]"
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]"
                   >
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Take Profit</span>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                      Take Profit
+                    </span>
                     <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-emerald-500">
                       {outcomeCounts.tp}
                     </div>
@@ -143,10 +160,12 @@ export function JournalMetrics({
                     initial={{ opacity: 0, scale: 0.96, y: 3 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: -3 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]"
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]"
                   >
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Breakeven</span>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                      Breakeven
+                    </span>
                     <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-amber-500">
                       {outcomeCounts.be}
                     </div>
@@ -157,10 +176,12 @@ export function JournalMetrics({
                     initial={{ opacity: 0, scale: 0.96, y: 3 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: -3 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]"
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]"
                   >
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Stop Loss</span>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                      Stop Loss
+                    </span>
                     <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-rose-500">
                       {outcomeCounts.sl}
                     </div>
@@ -171,28 +192,47 @@ export function JournalMetrics({
           </motion.div>
         ) : (
           <motion.div
-            key="ideas-metrics"
+            key="journal-ideas-metrics"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3"
           >
-            <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
-              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Total</span>
-              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-text-main">{ideaStats.total}</div>
+            <div className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                Total
+              </span>
+              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-text-main">
+                {ideaStats.total}
+              </div>
             </div>
-            <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
-              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Active</span>
-              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-amber-500">{ideaStats.active}</div>
+
+            <div className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                Active
+              </span>
+              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-amber-500">
+                {ideaStats.active}
+              </div>
             </div>
-            <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
-              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Executed</span>
-              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-emerald-500">{ideaStats.executed}</div>
+
+            <div className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                Executed
+              </span>
+              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-emerald-500">
+                {ideaStats.executed}
+              </div>
             </div>
-            <div className="flex flex-row items-baseline justify-between p-3.5 sm:p-4 bg-card border border-border-card rounded-[26px]">
-              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">Invalidated</span>
-              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-rose-500">{ideaStats.invalidated}</div>
+
+            <div className="flex flex-row items-baseline justify-between p-3 sm:p-4 bg-card border border-border-card rounded-[26px]">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted truncate mr-2">
+                Invalidated
+              </span>
+              <div className="text-base sm:text-xl font-bold font-mono tabular-nums text-rose-500">
+                {ideaStats.invalidated}
+              </div>
             </div>
           </motion.div>
         )}
@@ -200,4 +240,3 @@ export function JournalMetrics({
     </div>
   );
 }
-

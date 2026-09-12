@@ -10,6 +10,7 @@ import { SystemView } from './system/SystemView';
 import { StatsView } from './stats/StatsView';
 import { SettingsView } from './settings/SettingsView';
 import { AuthScreen } from './AuthScreen';
+import { AdvisorChat } from './advisor/AdvisorChat';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const checkInitialAuth = (): boolean => {
@@ -122,6 +123,7 @@ export function App() {
       </main>
 
       {showShell && <MobileTabBar />}
+      {showShell && <AdvisorChat />}
     </div>
   );
 }

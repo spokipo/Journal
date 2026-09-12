@@ -16,7 +16,8 @@ import {
   Loader2, 
   ChevronRight, 
   BookMarked, 
-  Cpu 
+  Cpu,
+  Sparkles 
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../lib/useTheme';
@@ -24,6 +25,7 @@ import { lockBodyScroll } from '../lib/scrollLock';
 import { AuthModal } from './Modals';
 import { TradeModal } from './trade/TradeModal';
 import { IdeaModal } from './trade/IdeaModal';
+import { openAdvisorChat } from './advisor/AdvisorChat';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Link, useLocation } from 'wouter';
 
@@ -323,6 +325,16 @@ export function MobileTabBar({ activeTab }: { activeTab?: string }) {
                   <Lightbulb size={18} /> 
                 </div>
                 <span className="font-semibold text-sm">New Idea</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => { openAdvisorChat(); setShowAddMenu(false); }}
+                className="flex items-center gap-3 w-full min-h-11 px-3 py-2 rounded-[18px] text-text-main hover:bg-canvas transition-colors active:scale-[0.98] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+              >
+                <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500">
+                  <Sparkles size={18} /> 
+                </div>
+                <span className="font-semibold text-sm">AI Advisor</span>
               </button>
             </motion.div>
           </>

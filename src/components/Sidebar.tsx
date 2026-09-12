@@ -289,17 +289,13 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
           </div>
 
           {/* Controls Footer */}
-          <div className="p-3 border-t border-border-card space-y-1 shrink-0 overflow-hidden">
+          <div className="p-3 border-t border-border-card space-y-1 shrink-0 overflow-visible">
             <div className="relative">
               <AnimatePresence>
                 {showAddMenu && (
                   <>
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="fixed inset-0 z-30 cursor-default" 
+                    <div 
+                      className="fixed inset-0 z-30 cursor-default bg-transparent" 
                       onClick={() => setShowAddMenu(false)} 
                     />
                     <motion.div
@@ -308,8 +304,8 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                       className={cn(
-                        "absolute bottom-full mb-3 bg-card border border-border-card rounded-[26px] p-2 shadow-2xl flex flex-col gap-1 z-40",
-                        isCollapsed ? "left-full ml-3 w-[200px]" : "left-0 w-full"
+                        "absolute bg-card border border-border-card rounded-[26px] p-2 shadow-2xl flex flex-col gap-1 z-40",
+                        isCollapsed ? "bottom-0 left-full ml-3 w-[200px]" : "bottom-full left-0 mb-3 w-full"
                       )}
                       role="menu"
                     >
@@ -320,7 +316,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                           setTradeModalOpen(true); 
                           setShowAddMenu(false); 
                         }}
-                        className="flex items-center gap-3 w-full text-left px-3 py-2 rounded-[18px] text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+                        className="flex items-center gap-3 w-full text-left px-3 py-2 rounded-[14px] text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
                       >
                         <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500">
                           <Zap size={18} />
@@ -333,7 +329,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                           setIdeaModalOpen(true); 
                           setShowAddMenu(false); 
                         }}
-                        className="flex items-center gap-3 w-full text-left px-3 py-2 rounded-[18px] text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
+                        className="flex items-center gap-3 w-full text-left px-3 py-2 rounded-[14px] text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
                       >
                         <div className="w-9 h-9 rounded-[14px] bg-amber-500/10 flex items-center justify-center shrink-0 text-amber-500">
                           <Lightbulb size={18} />
@@ -349,7 +345,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                 type="button"
                 onClick={() => setShowAddMenu(!showAddMenu)}
                 className={cn(
-                  "w-full h-11 flex items-center bg-blue-500 text-white rounded-[18px] hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 relative z-30 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
+                  "w-full h-11 flex items-center bg-blue-500 text-white rounded-full hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 relative z-30 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
                   isCollapsed ? "justify-center px-0" : "px-2.5"
                 )}
                 title={isCollapsed ? "New Entry" : undefined}

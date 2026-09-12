@@ -6,7 +6,7 @@ import {
   ChevronDown,
   Edit2,
   Trash2,
-  MoreVertical,
+  MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { SystemSection } from './types';
@@ -33,7 +33,7 @@ export function SectionContextMenu({
   onEdit,
   onDelete,
   triggerClassName,
-  iconSize = 18,
+  iconSize = 16,
   isCompact = false,
 }: SectionContextMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -102,22 +102,21 @@ export function SectionContextMenu({
     };
   }, [isOpen]);
 
-  const hasMoveActions = Boolean(onMoveUp || onMoveDown);
-
   return (
     <>
-      {/* Trigger button */}
+      {/* Trigger button - strictly rounded-full with border & canvas per design.md §4 */}
       <button
         ref={triggerRef}
         type="button"
         onClick={handleToggle}
         aria-label={`Options for ${section.title}`}
+        aria-expanded={isOpen}
         className={cn(
           triggerClassName ||
-            'w-11 h-11 min-w-11 min-h-11 rounded-[14px] flex items-center justify-center text-text-muted hover:text-text-main active:bg-canvas cursor-pointer transition-colors'
+            'w-11 h-11 min-w-11 min-h-11 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-card active:scale-95 shadow-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500'
         )}
       >
-        <MoreVertical size={iconSize} />
+        <MoreHorizontal size={iconSize} />
       </button>
 
       {/* Anchored Popover rendered in Portal to avoid any container overflow/transform clipping */}
@@ -126,9 +125,9 @@ export function SectionContextMenu({
           <AnimatePresence>
             {isOpen && (
               <>
-                {/* Backdrop overlay for outside clicks/taps */}
+                {/* Transparent backdrop for outside clicks/taps per design.md §5 */}
                 <div
-                  className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px] cursor-default"
+                  className="fixed inset-0 z-40 bg-transparent cursor-default"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsOpen(false);
@@ -137,6 +136,7 @@ export function SectionContextMenu({
                     e.stopPropagation();
                     setIsOpen(false);
                   }}
+                  aria-hidden="true"
                 />
 
                 {/* Anchored Context Menu Popover per design.md §5 & §3 */}
@@ -172,7 +172,7 @@ export function SectionContextMenu({
                         onMoveUp();
                       }}
                       className={cn(
-                        'w-full px-3 rounded-[12px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
+                        'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
                         isCompact ? 'h-8' : 'min-h-11 h-11'
                       )}
                     >
@@ -192,7 +192,7 @@ export function SectionContextMenu({
                         onMoveDown();
                       }}
                       className={cn(
-                        'w-full px-3 rounded-[12px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
+                        'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
                         isCompact ? 'h-8' : 'min-h-11 h-11'
                       )}
                     >
@@ -210,7 +210,7 @@ export function SectionContextMenu({
                       onEdit();
                     }}
                     className={cn(
-                      'w-full px-3 rounded-[12px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas transition-colors cursor-pointer text-left',
+                      'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas transition-colors cursor-pointer text-left',
                       isCompact ? 'h-8' : 'min-h-11 h-11'
                     )}
                   >
@@ -230,7 +230,7 @@ export function SectionContextMenu({
                       onDelete();
                     }}
                     className={cn(
-                      'w-full px-3 rounded-[12px] flex items-center gap-2.5 text-xs font-medium text-rose-500 hover:bg-rose-500/10 active:bg-rose-500/20 transition-colors cursor-pointer text-left',
+                      'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-rose-500 hover:bg-rose-500/10 active:bg-rose-500/20 transition-colors cursor-pointer text-left',
                       isCompact ? 'h-8' : 'min-h-11 h-11'
                     )}
                   >

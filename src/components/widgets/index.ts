@@ -14,10 +14,13 @@ export * from './WinRateWidget';
 export * from './ProfitFactorWidget';
 export * from './PnlCombinedWidget';
 export * from './ActiveIdeasWidget';
+export * from './BestSessionWidget';
+export * from './WorstSessionWidget';
+export * from './BestSetupWidget';
+export * from './WorstSetupWidget';
 export * from './BestWorstSetupsWidget';
 export * from './BestWorstSessionsWidget';
 export * from './EconomicNewsWidget';
 
 // Central Registry
 export * from './registry';
-

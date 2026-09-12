@@ -72,7 +72,7 @@ export function BestWorstSessionsWidget({ size, stats }: WidgetProps) {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 flex-1 h-full items-stretch">
-          <div className="bg-canvas border border-border-card rounded-[18px] p-3 flex flex-col justify-between">
+          <div className="bg-canvas border border-border-card rounded-[14px] p-3 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold uppercase flex items-center gap-1">
                 <Trophy size={12} /> Top Session
@@ -81,22 +81,22 @@ export function BestWorstSessionsWidget({ size, stats }: WidgetProps) {
                 +{bestSession.netR.toFixed(1)}R
               </span>
             </div>
-            <div className="my-1.5">
+            <div className="my-1">
               <div className="font-semibold text-sm text-text-main truncate">
                 {bestSession.label}
               </div>
               <div className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
                 <span>{bestSession.tradesCount} Trades</span>
                 <span>•</span>
-                <span className="font-semibold text-emerald-500">{bestSession.winRate.toFixed(0)}% Win Rate</span>
+                <span className="font-semibold text-emerald-500">{bestSession.winRate.toFixed(0)}% WR</span>
               </div>
             </div>
-            <div className="w-full bg-canvas rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-card rounded-full h-1.5 overflow-hidden">
               <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${bestSession.winRate}%` }} />
             </div>
           </div>
 
-          <div className="bg-canvas border border-border-card rounded-[18px] p-3 flex flex-col justify-between">
+          <div className="bg-canvas border border-border-card rounded-[14px] p-3 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-bold uppercase flex items-center gap-1">
                 <AlertTriangle size={12} /> Low Session
@@ -105,7 +105,7 @@ export function BestWorstSessionsWidget({ size, stats }: WidgetProps) {
                 {worstSession ? `${worstSession.netR >= 0 ? '+' : ''}${worstSession.netR.toFixed(1)}R` : '—'}
               </span>
             </div>
-            <div className="my-1.5">
+            <div className="my-1">
               <div className="font-semibold text-sm text-text-main truncate">
                 {worstSession ? worstSession.label : 'None'}
               </div>
@@ -114,12 +114,12 @@ export function BestWorstSessionsWidget({ size, stats }: WidgetProps) {
                 {worstSession && (
                   <>
                     <span>•</span>
-                    <span className="font-semibold text-rose-500">{worstSession.winRate.toFixed(0)}% Win Rate</span>
+                    <span className="font-semibold text-rose-500">{worstSession.winRate.toFixed(0)}% WR</span>
                   </>
                 )}
               </div>
             </div>
-            <div className="w-full bg-canvas rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-card rounded-full h-1.5 overflow-hidden">
               <div 
                 className="bg-rose-500 h-full rounded-full" 
                 style={{ width: `${worstSession ? worstSession.winRate : 0}%` }} 

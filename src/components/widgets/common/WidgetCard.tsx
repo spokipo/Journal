@@ -17,13 +17,18 @@ export function WidgetCard({
 }) {
   return (
     <div className={cn(
-      "bg-card border border-border-card rounded-[26px] p-5 flex flex-col shadow-sm h-full w-full overflow-hidden select-none",
-      size === 'small' && "p-4 justify-between",
+      "bg-card rounded-[26px] shadow-sm p-4 flex flex-col h-full w-full select-none",
+      size !== 'large' ? "overflow-hidden" : "overflow-visible",
+      size === 'small' && "justify-between",
       className
     )}>
       {(title || action) && size !== 'small' && (
-        <div className="flex items-center justify-between mb-3 shrink-0">
-          {title ? <h3 className="text-text-muted font-medium text-sm">{title}</h3> : <span />}
+        <div className="flex items-center justify-between mb-2 shrink-0">
+          {title ? (
+            <h3 className="text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold truncate">
+              {title}
+            </h3>
+          ) : <span />}
           {action}
         </div>
       )}

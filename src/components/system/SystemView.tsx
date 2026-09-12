@@ -1,30 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Edit3,
-  Save,
-  X,
-  Plus,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  BookOpen,
-  Sparkles,
-  Layers,
-  ChevronLeft,
-} from 'lucide-react';
+import { Plus, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { cn } from '../../lib/utils';
 import {
   type SystemSection,
-  getSectionIcon,
   DEFAULT_SYSTEM_SECTIONS,
 } from './types';
 import { SectionNav, MobileSectionList } from './SectionNav';
-import { RichTextEditor } from './RichTextEditor';
 import { SectionModal } from './SectionModal';
 import { DeleteSectionConfirmModal } from './DeleteSectionConfirmModal';
-import { SectionContextMenu } from './SectionContextMenu';
+import { SystemHeader } from './SystemHeader';
+import { DesktopSystemContent } from './DesktopSystemContent';
+import { MobileSystemDetail } from './MobileSystemDetail';
+import { EmptySystemState } from './EmptySystemState';
 
 export function SystemView() {
   const [user, setUser] = useState<any>(null);
@@ -52,7 +40,6 @@ export function SystemView() {
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
     const handleResize = (e: MediaQueryListEvent) => {
       setIsDesktop(e.matches);
-      // When resizing from mobile to desktop, ensure a section is selected if available
       if (e.matches && !activeSectionId && sections.length > 0) {
         setActiveSectionId(sections[0].id);
       }
@@ -84,7 +71,7 @@ export function SystemView() {
     return params.get('section') || null;
   }, []);
 
-  // Fetch sections from Supabase
+  // Fetch sections
   const fetchSections = useCallback(async (userId: string) => {
     try {
       setIsLoading(true);
@@ -92,7 +79,7 @@ export function SystemView() {
 
       let loadedSections: SystemSection[] = [];
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && userId && userId !== 'local-user') {
         const { data, error } = await supabase
           .from('system_sections')
           .select('*')
@@ -100,41 +87,32 @@ export function SystemView() {
           .order('order_index', { ascending: true });
 
         if (error) throw error;
-
         if (data && data.length > 0) {
           loadedSections = data;
-        } else {
-          // Check local cache
-          const cached = localStorage.getItem(`system_sections_${userId}`);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (parsed?.length > 0) loadedSections = parsed;
-            } catch (e) {}
-          }
         }
-      } else {
-        // Fallback for offline / dev mock
-        const cached = localStorage.getItem(`system_sections_offline`);
+      }
+
+      if (loadedSections.length === 0) {
+        const cacheKey = userId && userId !== 'local-user'
+          ? `system_sections_${userId}`
+          : 'system_sections_offline';
+        const cached = localStorage.getItem(cacheKey);
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
-            if (parsed?.length > 0) loadedSections = parsed;
+            if (Array.isArray(parsed) && parsed.length > 0) loadedSections = parsed;
           } catch (e) {}
         }
       }
 
       setSections(loadedSections);
 
-      // Deep link / URL synchronization
       const urlSection = getUrlSectionId();
       if (urlSection && loadedSections.some((s) => s.id === urlSection)) {
         setActiveSectionId(urlSection);
       } else if (window.innerWidth >= 1024 && loadedSections.length > 0) {
-        // On desktop, default to the first section
         setActiveSectionId(loadedSections[0].id);
       } else {
-        // On mobile (< lg), default to null so the section list is displayed first per Type D
         setActiveSectionId(null);
       }
     } catch (err: any) {
@@ -156,11 +134,7 @@ export function SystemView() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (u) {
-        fetchSections(u.id);
-      } else {
-        setIsLoading(false);
-      }
+      fetchSections(u?.id || 'local-user');
     });
 
     const {
@@ -168,13 +142,7 @@ export function SystemView() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (u) {
-        fetchSections(u.id);
-      } else {
-        setSections([]);
-        setActiveSectionId(null);
-        setIsLoading(false);
-      }
+      fetchSections(u?.id || 'local-user');
     });
 
     return () => subscription.unsubscribe();
@@ -187,7 +155,6 @@ export function SystemView() {
       if (sectionFromUrl && sections.some((s) => s.id === sectionFromUrl)) {
         setActiveSectionId(sectionFromUrl);
       } else {
-        // If on mobile and no query param, return to section list
         if (window.innerWidth < 1024) {
           setActiveSectionId(null);
         } else if (sections.length > 0) {
@@ -201,7 +168,6 @@ export function SystemView() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [getUrlSectionId, sections]);
 
-  // Sync draft when active section changes
   const activeSection = sections.find((s) => s.id === activeSectionId) || null;
 
   useEffect(() => {
@@ -214,7 +180,6 @@ export function SystemView() {
     }
   }, [activeSectionId, activeSection]);
 
-  // Select section and synchronize query param (?section=id)
   const handleSelectSection = (id: string) => {
     setIsEditMode(false);
     setActiveSectionId(id);
@@ -226,7 +191,6 @@ export function SystemView() {
     }
   };
 
-  // Back button on mobile (< lg) - returns to the sections list
   const handleBackToList = () => {
     if (isEditMode) {
       setIsEditMode(false);
@@ -240,7 +204,6 @@ export function SystemView() {
     }
   };
 
-  // Enter Edit Mode
   const handleEnterEditMode = () => {
     if (!activeSection) return;
     setDraftContent(activeSection.content || '');
@@ -248,7 +211,6 @@ export function SystemView() {
     setIsEditMode(true);
   };
 
-  // Cancel Edit Mode
   const handleCancelEdit = () => {
     if (activeSection) {
       setDraftContent(activeSection.content || '');
@@ -257,9 +219,8 @@ export function SystemView() {
     setIsEditMode(false);
   };
 
-  // Save changes
   const handleSave = async () => {
-    if (!activeSection || !user) return;
+    if (!activeSection) return;
 
     try {
       setIsSaving(true);
@@ -272,7 +233,17 @@ export function SystemView() {
         updated_at: new Date().toISOString(),
       };
 
-      if (isSupabaseConfigured) {
+      const nextSections = sections.map((s) =>
+        s.id === activeSection.id ? updatedSection : s
+      );
+      setSections(nextSections);
+
+      const cacheKey = user && user.id !== 'local-user'
+        ? `system_sections_${user.id}`
+        : 'system_sections_offline';
+      localStorage.setItem(cacheKey, JSON.stringify(nextSections));
+
+      if (isSupabaseConfigured && user && user.id !== 'local-user') {
         const { error } = await supabase
           .from('system_sections')
           .update({
@@ -286,18 +257,6 @@ export function SystemView() {
         if (error) throw error;
       }
 
-      // Update local state
-      const nextSections = sections.map((s) =>
-        s.id === activeSection.id ? updatedSection : s
-      );
-      setSections(nextSections);
-
-      // Cache locally
-      localStorage.setItem(
-        `system_sections_${user.id}`,
-        JSON.stringify(nextSections)
-      );
-
       setIsEditMode(false);
       setSaveSuccessNotice(true);
       setTimeout(() => setSaveSuccessNotice(false), 2500);
@@ -309,18 +268,15 @@ export function SystemView() {
     }
   };
 
-  // Reorder sections
   const handleReorder = async (newSections: SystemSection[]) => {
     setSections(newSections);
 
-    if (user) {
-      localStorage.setItem(
-        `system_sections_${user.id}`,
-        JSON.stringify(newSections)
-      );
-    }
+    const cacheKey = user && user.id !== 'local-user'
+      ? `system_sections_${user.id}`
+      : 'system_sections_offline';
+    localStorage.setItem(cacheKey, JSON.stringify(newSections));
 
-    if (isSupabaseConfigured && user) {
+    if (isSupabaseConfigured && user && user.id !== 'local-user') {
       try {
         const updates = newSections.map((sec, idx) => ({
           id: sec.id,
@@ -339,22 +295,21 @@ export function SystemView() {
     }
   };
 
-  // Initialize Default Sections
   const handleInitializeDefaults = async () => {
-    if (!user) return;
     try {
       setIsLoading(true);
       setErrorMessage(null);
 
+      const userId = user?.id || 'local-user';
       const toInsert = DEFAULT_SYSTEM_SECTIONS.map((sec, idx) => ({
-        user_id: user.id,
+        user_id: userId,
         title: sec.title,
         icon: sec.icon,
         content: sec.content,
         order_index: idx,
       }));
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && user && user.id !== 'local-user') {
         const { data, error } = await supabase
           .from('system_sections')
           .insert(toInsert)
@@ -368,15 +323,12 @@ export function SystemView() {
           } else {
             setActiveSectionId(null);
           }
-          localStorage.setItem(
-            `system_sections_${user.id}`,
-            JSON.stringify(data)
-          );
+          localStorage.setItem(`system_sections_${userId}`, JSON.stringify(data));
         }
       } else {
         const mockData: SystemSection[] = toInsert.map((item, idx) => ({
           ...item,
-          id: `mock-${idx}-${Date.now()}`,
+          id: `sec-default-${idx}-${Date.now()}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }));
@@ -386,10 +338,7 @@ export function SystemView() {
         } else {
           setActiveSectionId(null);
         }
-        localStorage.setItem(
-          `system_sections_${user.id}`,
-          JSON.stringify(mockData)
-        );
+        localStorage.setItem('system_sections_offline', JSON.stringify(mockData));
       }
     } catch (err: any) {
       console.error('Error initializing system sections:', err);
@@ -399,12 +348,10 @@ export function SystemView() {
     }
   };
 
-  // Create or Update Section from Modal
   const handleSaveSectionModal = async (title: string, icon: string) => {
-    if (!user) return;
+    const userId = user?.id || 'local-user';
 
     if (editingSectionForModal) {
-      // Update existing title & icon
       const updated: SystemSection = {
         ...editingSectionForModal,
         title,
@@ -412,7 +359,19 @@ export function SystemView() {
         updated_at: new Date().toISOString(),
       };
 
-      if (isSupabaseConfigured) {
+      const next = sections.map((s) => (s.id === updated.id ? updated : s));
+      setSections(next);
+
+      const cacheKey = user && user.id !== 'local-user'
+        ? `system_sections_${user.id}`
+        : 'system_sections_offline';
+      localStorage.setItem(cacheKey, JSON.stringify(next));
+
+      if (activeSectionId === updated.id) {
+        setDraftTitle(updated.title);
+      }
+
+      if (isSupabaseConfigured && user && user.id !== 'local-user') {
         const { error } = await supabase
           .from('system_sections')
           .update({
@@ -425,22 +384,10 @@ export function SystemView() {
 
         if (error) throw error;
       }
-
-      const next = sections.map((s) => (s.id === updated.id ? updated : s));
-      setSections(next);
-      localStorage.setItem(
-        `system_sections_${user.id}`,
-        JSON.stringify(next)
-      );
-
-      if (activeSectionId === updated.id) {
-        setDraftTitle(updated.title);
-      }
     } else {
-      // Add new section
       const newOrder = sections.length;
       const newPayload = {
-        user_id: user.id,
+        user_id: userId,
         title,
         icon,
         content: `<h2>${title}</h2><p>Document your processes, rules, and guidelines here...</p>`,
@@ -449,7 +396,7 @@ export function SystemView() {
 
       let createdSection: SystemSection;
 
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && user && user.id !== 'local-user') {
         const { data, error } = await supabase
           .from('system_sections')
           .insert(newPayload)
@@ -470,19 +417,27 @@ export function SystemView() {
       const next = [...sections, createdSection];
       setSections(next);
       handleSelectSection(createdSection.id);
-      localStorage.setItem(
-        `system_sections_${user.id}`,
-        JSON.stringify(next)
-      );
+
+      const cacheKey = user && user.id !== 'local-user'
+        ? `system_sections_${user.id}`
+        : 'system_sections_offline';
+      localStorage.setItem(cacheKey, JSON.stringify(next));
     }
   };
 
-  // Delete Section
   const handleConfirmDeleteSection = async () => {
-    if (!deletingSection || !user) return;
+    if (!deletingSection) return;
 
     try {
-      if (isSupabaseConfigured) {
+      const next = sections.filter((s) => s.id !== deletingSection.id);
+      setSections(next);
+
+      const cacheKey = user && user.id !== 'local-user'
+        ? `system_sections_${user.id}`
+        : 'system_sections_offline';
+      localStorage.setItem(cacheKey, JSON.stringify(next));
+
+      if (isSupabaseConfigured && user && user.id !== 'local-user') {
         const { error } = await supabase
           .from('system_sections')
           .delete()
@@ -491,13 +446,6 @@ export function SystemView() {
 
         if (error) throw error;
       }
-
-      const next = sections.filter((s) => s.id !== deletingSection.id);
-      setSections(next);
-      localStorage.setItem(
-        `system_sections_${user.id}`,
-        JSON.stringify(next)
-      );
 
       if (activeSectionId === deletingSection.id) {
         if (isDesktop) {
@@ -515,12 +463,8 @@ export function SystemView() {
     }
   };
 
-  // Section Icon component for active section
-  const ActiveIcon = activeSection ? getSectionIcon(activeSection.icon) : BookOpen;
-
-  // Animation transition tokens per §2 and §3 (0.15–0.28s)
   const transitionConfig = {
-    duration: prefersReducedMotion ? 0 : 0.22,
+    duration: prefersReducedMotion ? 0 : 0.2,
     ease: [0.16, 1, 0.3, 1],
   };
 
@@ -559,303 +503,91 @@ export function SystemView() {
         )}
       </AnimatePresence>
 
-      {/* LOADING STATE (§7) */}
-      {isLoading ? (
-        <div className="p-12 bg-card border border-border-card rounded-[26px] flex flex-col items-center justify-center text-text-muted space-y-3">
-          <Loader2 size={32} className="animate-spin text-blue-500" />
-          <p className="text-xs font-medium">Loading your trading system...</p>
-        </div>
-      ) : sections.length === 0 ? (
-        /* EMPTY STATE (§7) */
-        <div className="p-8 sm:p-12 bg-card border border-border-card rounded-[26px] flex flex-col items-center justify-center text-center space-y-4 max-w-xl mx-auto">
-          <div className="w-16 h-16 rounded-full bg-canvas flex items-center justify-center text-text-muted">
-            <Layers size={28} />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold text-text-main">
-              No System Sections Yet
-            </h3>
-            <p className="text-xs text-text-muted max-w-md">
-              Create a personalized trading knowledge base to record your risk rules, daily routines, entry criteria, and psychology reminders.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={handleInitializeDefaults}
-              className="w-full sm:w-auto min-h-11 h-11 px-5 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Sparkles size={15} />
-              <span>Initialize Starter System</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
+      {/* LOADING STATE, EMPTY STATE, OR CONTENT WITH ANIMATEPRESENCE (§3.1, §7) */}
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="system-loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="p-12 bg-card border border-border-card rounded-[26px] flex flex-col items-center justify-center text-text-muted space-y-3"
+          >
+            <Loader2 size={32} className="animate-spin text-blue-500" />
+            <p className="text-xs font-medium">Loading your trading system...</p>
+          </motion.div>
+        ) : sections.length === 0 ? (
+          /* EMPTY STATE (§7) with Band reveal */
+          <motion.div
+            key="system-empty"
+            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <EmptySystemState
+              onInitializeDefaults={handleInitializeDefaults}
+              onOpenCreateModal={() => {
                 setEditingSectionForModal(null);
                 setIsSectionModalOpen(true);
               }}
-              className="w-full sm:w-auto min-h-11 h-11 px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-main hover:bg-canvas active:scale-[0.98] transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Plus size={15} />
-              <span>Create Custom Section</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* TYPE D SECTIONED CONTENT */
-        <div className="w-full">
-          {/* ========================================================== */}
-          {/* DESKTOP LAYOUT (>= lg): Two-column Nav + Content            */}
-          {/* ========================================================== */}
-          <div className="hidden lg:flex flex-col space-y-5 w-full">
-            {/* Desktop Page Header */}
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-text-main tracking-tight">
-                    Trading System
-                  </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                    Knowledge Base
-                  </span>
-                </div>
-                <p className="text-text-muted text-xs sm:text-sm mt-0.5">
-                  Your personal rulebook, strategy guidelines, and operating checklists
-                </p>
-              </div>
+            />
+          </motion.div>
+        ) : (
+          /* TYPE D SECTIONED CONTENT with Band reveal */
+          <motion.div
+            key="system-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="w-full"
+          >
+            {/* ========================================================== */}
+            {/* DESKTOP LAYOUT (>= lg): Two-column Nav + Content            */}
+            {/* ========================================================== */}
+            <div className="hidden lg:flex flex-col space-y-5 w-full">
+              {/* Desktop Page Header with Band reveal (§3.1) */}
+              <motion.div
+                initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <SystemHeader
+                  activeSection={activeSection}
+                  isEditMode={isEditMode}
+                  isSaving={isSaving}
+                  onEnterEditMode={handleEnterEditMode}
+                  onCancelEdit={handleCancelEdit}
+                  onSave={handleSave}
+                  onEditSection={(section) => {
+                    setEditingSectionForModal(section);
+                    setIsSectionModalOpen(true);
+                  }}
+                  onDeleteSection={(section) => {
+                    setDeletingSection(section);
+                  }}
+                />
+              </motion.div>
 
-              {activeSection && (
-                <div className="flex items-center gap-2.5">
-                  {isEditMode ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleCancelEdit}
-                        disabled={isSaving}
-                        className="h-10 px-4 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-1.5"
-                      >
-                        <X size={14} />
-                        <span>Cancel</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="h-10 px-5 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 size={14} className="animate-spin" />
-                            <span>Saving...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Save size={14} />
-                            <span>Save</span>
-                          </>
-                        )}
-                      </button>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleEnterEditMode}
-                        className="h-10 px-4 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-main hover:bg-canvas hover:border-blue-500/40 transition-colors cursor-pointer flex items-center gap-2 shadow-xs"
-                      >
-                        <Edit3 size={14} className="text-blue-500" />
-                        <span>Edit</span>
-                      </button>
-
-                      <SectionContextMenu
-                        section={activeSection}
-                        onEdit={() => {
-                          setEditingSectionForModal(activeSection);
-                          setIsSectionModalOpen(true);
-                        }}
-                        onDelete={() => {
-                          setDeletingSection(activeSection);
-                        }}
-                        isCompact={true}
-                        iconSize={15}
-                        triggerClassName="h-10 w-10 rounded-[18px] bg-card border border-border-card text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center justify-center shadow-xs"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Desktop Two-Column Layout */}
-            <div className="flex items-start gap-6 w-full">
-              {/* Left column navigation */}
-              <SectionNav
-                sections={sections}
-                activeSectionId={activeSectionId}
-                onSelectSection={handleSelectSection}
-                onAddSection={() => {
-                  setEditingSectionForModal(null);
-                  setIsSectionModalOpen(true);
-                }}
-                onEditSection={(section) => {
-                  setEditingSectionForModal(section);
-                  setIsSectionModalOpen(true);
-                }}
-                onDeleteSection={(section) => {
-                  setDeletingSection(section);
-                }}
-                onReorder={handleReorder}
-                isEditMode={isEditMode}
-              />
-
-              {/* Right column content card (L2 Container) */}
-              <div className="flex-1 min-w-0 bg-card border border-border-card rounded-[26px] p-7 md:p-8 flex flex-col shadow-xs overflow-hidden">
-                <AnimatePresence mode="wait" initial={false}>
-                  {activeSection ? (
-                    <motion.div
-                      key={activeSection.id}
-                      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: -8 }}
-                      transition={transitionConfig}
-                      className="w-full space-y-6"
-                    >
-                      <div className="flex items-center justify-between pb-4 border-b border-border-card gap-3">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-10 h-10 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
-                            <ActiveIcon size={20} />
-                          </div>
-                          {isEditMode ? (
-                            <input
-                              type="text"
-                              value={draftTitle}
-                              onChange={(e) => setDraftTitle(e.target.value)}
-                              placeholder="Section Title"
-                              className="text-xl font-bold text-text-main bg-canvas border border-border-card rounded-[14px] px-3 py-1 outline-none focus:border-blue-500 w-full"
-                            />
-                          ) : (
-                            <div className="min-w-0 flex-1">
-                              <h2 className="text-xl sm:text-2xl font-bold text-text-main tracking-tight truncate">
-                                {activeSection.title}
-                              </h2>
-                              <span className="text-[0.6875rem] text-text-muted">
-                                Last updated:{' '}
-                                {new Date(
-                                  activeSection.updated_at || activeSection.created_at
-                                ).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {isEditMode && (
-                          <span className="px-2.5 py-1 rounded-full text-[0.6875rem] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase tracking-wider shrink-0">
-                            Edit Mode
-                          </span>
-                        )}
-                      </div>
-
-                      <RichTextEditor
-                        content={isEditMode ? draftContent : activeSection.content}
-                        isEditable={isEditMode}
-                        onChange={(html) => setDraftContent(html)}
-                        userId={user?.id}
-                      />
-
-                      {isEditMode && (
-                        <div className="pt-6 border-t border-border-card flex items-center justify-end gap-3">
-                          <button
-                            type="button"
-                            onClick={handleCancelEdit}
-                            disabled={isSaving}
-                            className="h-10 px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="h-10 px-6 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer disabled:opacity-50"
-                          >
-                            {isSaving ? 'Saving...' : 'Save Changes'}
-                          </button>
-                        </div>
-                      )}
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="empty-system-selection"
-                      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
-                      className="py-16 text-center text-text-muted text-xs"
-                    >
-                      Select a section from the left navigation to view or edit its contents.
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-
-          {/* ========================================================== */}
-          {/* MOBILE / TABLET LAYOUT (< lg)                              */}
-          {/* Rule (§3 Type D):                                          */}
-          {/* На < lg сначала показывается список разделов (L1-строки с  */}
-          {/* disclosure); по выбору раздела список заменяется его        */}
-          {/* контентом на полный доступный экран.                        */}
-          {/* Mobile drill-down header: заголовок по центру, БЕЗ иконки, */}
-          {/* кнопка «Назад» слева, action справа для симметрии.          */}
-          {/* Push-навигация: slide-in справа налево, не fade.           */}
-          {/* ========================================================== */}
-          <div className="lg:hidden w-full overflow-hidden">
-            <AnimatePresence mode="wait">
-              {!activeSectionId || !activeSection ? (
-                /* SCREEN 1: MOBILE SECTION LIST */
+              {/* Desktop Two-Column Layout */}
+              <div className="flex items-start gap-6 w-full">
+                {/* Left column navigation with Band reveal (delay 0.04s) */}
                 <motion.div
-                  key="mobile-section-list"
-                  initial={prefersReducedMotion ? { opacity: 1 } : { x: -32 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={prefersReducedMotion ? { opacity: 1 } : { x: -32 }}
-                  transition={transitionConfig}
-                  className="w-full space-y-5"
+                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18, delay: 0.04, ease: [0.16, 1, 0.3, 1] }}
+                  className="shrink-0"
                 >
-                  {/* Mobile Header with Title and Add Action */}
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold text-text-main tracking-tight">
-                          Trading System
-                        </h1>
-                        <span className="px-2 py-0.5 rounded-full text-[0.6875rem] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                          System
-                        </span>
-                      </div>
-                      <p className="text-text-muted text-xs mt-0.5">
-                        Your trading rulebook & knowledge base
-                      </p>
-                    </div>
-
-                    {/* Primary action (min 44px hit area per §3 & §9) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingSectionForModal(null);
-                        setIsSectionModalOpen(true);
-                      }}
-                      className="min-h-11 min-w-11 h-11 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer shrink-0"
-                    >
-                      <Plus size={16} />
-                      <span className="hidden sm:inline">New Section</span>
-                    </button>
-                  </div>
-
-                  {/* L1 Disclosure Rows List */}
-                  <MobileSectionList
+                  <SectionNav
                     sections={sections}
+                    activeSectionId={activeSectionId}
                     onSelectSection={handleSelectSection}
+                    onAddSection={() => {
+                      setEditingSectionForModal(null);
+                      setIsSectionModalOpen(true);
+                    }}
                     onEditSection={(section) => {
                       setEditingSectionForModal(section);
                       setIsSectionModalOpen(true);
@@ -864,149 +596,135 @@ export function SystemView() {
                       setDeletingSection(section);
                     }}
                     onReorder={handleReorder}
+                    isEditMode={isEditMode}
                   />
                 </motion.div>
-              ) : (
-                /* SCREEN 2: MOBILE SECTION DETAIL (Replaces list on full screen) */
+
+                {/* Right column content card (delay 0.08s) */}
                 <motion.div
-                  key={`mobile-detail-${activeSection.id}`}
-                  initial={prefersReducedMotion ? { opacity: 1 } : { x: '100%' }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={prefersReducedMotion ? { opacity: 1 } : { x: '100%' }}
-                  transition={transitionConfig}
-                  className="w-full space-y-4"
+                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex-1 min-w-0"
                 >
-                  {/* TOP BAR: Back button (>=44x44px) + Centered Section Title (NO icon) + Action */}
-                  <div className="flex items-center justify-between gap-2.5 w-full">
-                    {/* Back Button (interactive area >= 44x44px per §3 & §9) */}
-                    <button
-                      type="button"
-                      onClick={handleBackToList}
-                      aria-label="Back to sections list"
-                      className="w-11 h-11 min-w-11 min-h-11 rounded-full bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer shrink-0 shadow-2xs"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-
-                    {/* Centered Section Title (NO icon, text-base font-semibold) */}
-                    <div className="flex-1 min-w-0 text-center px-1">
-                      {isEditMode ? (
-                        <input
-                          type="text"
-                          value={draftTitle}
-                          onChange={(e) => setDraftTitle(e.target.value)}
-                          placeholder="Section Title"
-                          className="text-base font-semibold text-text-main text-center bg-canvas border border-border-card rounded-[14px] px-3 py-1.5 outline-none focus:border-blue-500 w-full min-h-11"
-                        />
-                      ) : (
-                        <h2 className="text-base font-semibold text-text-main truncate text-center">
-                          {activeSection.title}
-                        </h2>
-                      )}
-                    </div>
-
-                    {/* Right Header Action (Edit / Save & Cancel) - min-w-11 min-h-11 for symmetry */}
-                    <div className="min-w-11 min-h-11 flex items-center justify-end shrink-0">
-                      {isEditMode ? (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={handleCancelEdit}
-                            disabled={isSaving}
-                            className="min-h-11 min-w-11 h-11 px-3 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="min-h-11 min-w-11 h-11 px-3.5 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                          >
-                            {isSaving ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                              <Save size={14} />
-                            )}
-                            <span>Save</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={handleEnterEditMode}
-                            className="min-h-11 min-w-11 h-11 px-3.5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-main hover:bg-canvas hover:border-blue-500/40 active:scale-95 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                          >
-                            <Edit3 size={15} className="text-blue-500" />
-                            <span>Edit</span>
-                          </button>
-
-                          <SectionContextMenu
-                            section={activeSection}
-                            onEdit={() => {
-                              setEditingSectionForModal(activeSection);
-                              setIsSectionModalOpen(true);
-                            }}
-                            onDelete={() => {
-                              setDeletingSection(activeSection);
-                            }}
-                            isCompact={false}
-                            iconSize={18}
-                            triggerClassName="w-11 h-11 min-w-11 min-h-11 rounded-[14px] bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main active:bg-canvas shadow-2xs cursor-pointer"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Section Content (Full available screen L2 Container Card) */}
-                  <div className="w-full bg-card border border-border-card rounded-[26px] p-5 sm:p-6 shadow-xs flex flex-col space-y-5">
-                    <RichTextEditor
-                      content={isEditMode ? draftContent : activeSection.content}
-                      isEditable={isEditMode}
-                      onChange={(html) => setDraftContent(html)}
-                      userId={user?.id}
-                    />
-
-                    {/* Bottom Action Bar in Edit Mode for comfortable thumb reach */}
-                    {isEditMode && (
-                      <div className="pt-4 border-t border-border-card flex items-center justify-end gap-2.5">
-                        <button
-                          type="button"
-                          onClick={handleCancelEdit}
-                          disabled={isSaving}
-                          className="flex-1 min-h-11 h-11 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={isSaving}
-                          className="flex-1 min-h-11 h-11 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          {isSaving ? (
-                            <>
-                              <Loader2 size={14} className="animate-spin" />
-                              <span>Saving...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Save size={14} />
-                              <span>Save Changes</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <DesktopSystemContent
+                    activeSection={activeSection}
+                    isEditMode={isEditMode}
+                    isSaving={isSaving}
+                    draftTitle={draftTitle}
+                    setDraftTitle={setDraftTitle}
+                    draftContent={draftContent}
+                    setDraftContent={setDraftContent}
+                    userId={user?.id}
+                    onCancelEdit={handleCancelEdit}
+                    onSave={handleSave}
+                    prefersReducedMotion={prefersReducedMotion}
+                  />
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+
+            {/* ========================================================== */}
+            {/* MOBILE / TABLET LAYOUT (< lg) (§3 Type D)                  */}
+            {/* ========================================================== */}
+            <div className="lg:hidden w-full overflow-hidden">
+              <AnimatePresence mode="wait">
+                {!activeSectionId || !activeSection ? (
+                  /* SCREEN 1: MOBILE SECTION LIST */
+                  <motion.div
+                    key="mobile-section-list"
+                    initial={prefersReducedMotion ? { opacity: 1 } : { x: -32, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={prefersReducedMotion ? { opacity: 1 } : { x: -32, opacity: 0 }}
+                    transition={transitionConfig}
+                    className="w-full space-y-5"
+                  >
+                    {/* Mobile Header with Title and Add Action (Band reveal §3.1) */}
+                    <motion.div
+                      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h1 className="text-2xl font-bold text-text-main tracking-tight">
+                            Trading System
+                          </h1>
+                          <span className="px-2 py-0.5 rounded-full text-[0.6875rem] font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                            System
+                          </span>
+                        </div>
+                        <p className="text-text-muted text-xs mt-0.5">
+                          Your trading rulebook & knowledge base
+                        </p>
+                      </div>
+
+                      {/* Primary action (min 44px hit area per §3, §4, §9: icon-only on mobile) */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSectionForModal(null);
+                          setIsSectionModalOpen(true);
+                        }}
+                        aria-label="New Section"
+                        className="w-11 h-11 rounded-full bg-blue-500 border border-blue-500 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm shadow-blue-500/20 cursor-pointer shrink-0 hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </motion.div>
+
+                    {/* L1 Disclosure Rows List */}
+                    <MobileSectionList
+                      sections={sections}
+                      onSelectSection={handleSelectSection}
+                      onEditSection={(section) => {
+                        setEditingSectionForModal(section);
+                        setIsSectionModalOpen(true);
+                      }}
+                      onDeleteSection={(section) => {
+                        setDeletingSection(section);
+                      }}
+                      onReorder={handleReorder}
+                    />
+                  </motion.div>
+                ) : (
+                  /* SCREEN 2: MOBILE SECTION DETAIL (§3 Mobile drill-down header) */
+                  <motion.div
+                    key={`mobile-detail-${activeSection.id}`}
+                    initial={prefersReducedMotion ? { opacity: 1 } : { x: '100%', opacity: 1 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={prefersReducedMotion ? { opacity: 1 } : { x: '100%', opacity: 1 }}
+                    transition={transitionConfig}
+                  >
+                    <MobileSystemDetail
+                      activeSection={activeSection}
+                      isEditMode={isEditMode}
+                      isSaving={isSaving}
+                      draftTitle={draftTitle}
+                      setDraftTitle={setDraftTitle}
+                      draftContent={draftContent}
+                      setDraftContent={setDraftContent}
+                      userId={user?.id}
+                      onBackToList={handleBackToList}
+                      onEnterEditMode={handleEnterEditMode}
+                      onCancelEdit={handleCancelEdit}
+                      onSave={handleSave}
+                      onEditSection={(section) => {
+                        setEditingSectionForModal(section);
+                        setIsSectionModalOpen(true);
+                      }}
+                      onDeleteSection={(section) => {
+                        setDeletingSection(section);
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ADD / RENAME SECTION MODAL */}
       <SectionModal

@@ -16,7 +16,9 @@ import {
   Lightbulb,
   Target,
   Globe,
-  DollarSign
+  DollarSign,
+  Trophy,
+  AlertTriangle
 } from 'lucide-react';
 import { WIDGET_REGISTRY, type WidgetSize, type WidgetProps } from './widgets';
 import { cn } from '../lib/utils';
@@ -58,27 +60,36 @@ interface WidgetInstance {
 
 const INITIAL_LAYOUT: WidgetInstance[] = [
   { id: 'w1', type: 'equitySparkline', size: 'medium' },
-  { id: 'w2', type: 'dailyRisk', size: 'small' },
-  { id: 'w3', type: 'activeIdeas', size: 'small' },
-  { id: 'w4', type: 'pnlCombined', size: 'small' },
-  { id: 'w5', type: 'bestWorstSetups', size: 'small' },
-  { id: 'w6', type: 'bestWorstSessions', size: 'small' },
-  { id: 'w7', type: 'economicNews', size: 'small' },
-  { id: 'w8', type: 'sessionTracker', size: 'small' },
-  { id: 'w9', type: 'equitySparkline', size: 'large' },
+  { id: 'w2', type: 'pnlCombined', size: 'small' },
+  { id: 'w3', type: 'dailyRisk', size: 'small' },
+  { id: 'w4', type: 'sessionTracker', size: 'small' },
+  { id: 'w5', type: 'economicNews', size: 'small' },
+  { id: 'w6', type: 'winRate', size: 'small' },
+  { id: 'w7', type: 'profitFactor', size: 'small' },
+  { id: 'w8', type: 'bestSession', size: 'small' },
+  { id: 'w9', type: 'worstSession', size: 'small' },
+  { id: 'w10', type: 'bestSetup', size: 'small' },
+  { id: 'w11', type: 'worstSetup', size: 'small' },
+  { id: 'w12', type: 'activeIdeas', size: 'medium' },
+  { id: 'w13', type: 'equitySparkline', size: 'large' },
 ];
 
 function DashboardSkeleton() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 pb-32 md:pb-8 animate-pulse">
-      <div className="col-span-2 aspect-[2/1] md:aspect-[2.05/1] rounded-[26px] bg-card border border-border-card p-5" />
-      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
-      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
-      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
-      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
-      <div className="col-span-2 row-span-2 aspect-square rounded-[26px] bg-card border border-border-card p-5" />
-      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
-      <div className="col-span-1 aspect-square rounded-[26px] bg-card border border-border-card p-4" />
+      <div className="col-span-2 aspect-[2/1] rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-1 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-2 aspect-[2/1] rounded-[26px] bg-card p-4 shadow-sm" />
+      <div className="col-span-2 row-span-2 aspect-square rounded-[26px] bg-card p-4 shadow-sm" />
     </div>
   );
 }
@@ -116,7 +127,7 @@ function SortableWidget({
     }) : undefined,
     transition,
     zIndex: isDragging ? 40 : 1,
-    touchAction: isEditMode ? 'none' : 'auto',
+    touchAction: isDragging ? 'none' : 'pan-y',
   };
 
   const RegistryEntry = WIDGET_REGISTRY[widget.type];
@@ -135,7 +146,7 @@ function SortableWidget({
       className={cn(
         "relative w-full h-full rounded-[26px] transition-shadow",
         widget.size === 'small' && "col-span-1 row-span-1 aspect-square",
-        widget.size === 'medium' && "col-span-2 row-span-1 aspect-[2/1] md:aspect-[2.05/1]", 
+        widget.size === 'medium' && "col-span-2 row-span-1 aspect-[2/1]", 
         widget.size === 'large' && "col-span-2 row-span-2 aspect-square",
         isDragging && "shadow-2xl cursor-grabbing"
       )}
@@ -159,8 +170,9 @@ function SortableWidget({
             <div 
               {...attributes}
               {...listeners}
+              style={{ touchAction: 'none' }}
               aria-label="Drag widget to reorder"
-              className="p-1.5 bg-card/95 backdrop-blur-md rounded-full shadow-md border border-border-card text-text-muted cursor-grab active:cursor-grabbing hover:text-text-main transition-colors"
+              className="p-1.5 bg-card/90 backdrop-blur-md rounded-full shadow-md border border-border-card text-text-muted cursor-grab active:cursor-grabbing hover:text-text-main transition-colors"
             >
               <GripHorizontal size={16} />
             </div>
@@ -238,7 +250,7 @@ export function Dashboard() {
 
   useEffect(() => {
     setIsMounted(true);
-    const savedLayout = localStorage.getItem('widgetLayout_v4');
+    const savedLayout = localStorage.getItem('widgetLayout_v5');
     if (savedLayout) {
       try {
         const parsed = JSON.parse(savedLayout);
@@ -255,7 +267,34 @@ export function Dashboard() {
           if (valid.length > 0) setLayout(valid);
         }
       } catch (e) {
-        console.error('Failed to parse saved dashboard layout', e);
+        console.error('Failed to parse saved dashboard layout v5', e);
+      }
+    } else {
+      // Check for v4 legacy layout and migrate to separate widgets
+      const legacyLayout = localStorage.getItem('widgetLayout_v4');
+      if (legacyLayout) {
+        try {
+          const parsed = JSON.parse(legacyLayout);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const migrated: WidgetInstance[] = [];
+            for (const item of parsed) {
+              if (item.type === 'bestWorstSessions') {
+                migrated.push({ id: `${item.id}_best`, type: 'bestSession', size: 'small' });
+                migrated.push({ id: `${item.id}_worst`, type: 'worstSession', size: 'small' });
+              } else if (item.type === 'bestWorstSetups') {
+                migrated.push({ id: `${item.id}_best`, type: 'bestSetup', size: 'small' });
+                migrated.push({ id: `${item.id}_worst`, type: 'worstSetup', size: 'small' });
+              } else if (WIDGET_REGISTRY[item.type as keyof typeof WIDGET_REGISTRY]) {
+                const entry = WIDGET_REGISTRY[item.type as keyof typeof WIDGET_REGISTRY];
+                const validSize = entry.supportedSizes.includes(item.size) ? item.size : entry.supportedSizes[0];
+                migrated.push({ ...item, size: validSize });
+              }
+            }
+            if (migrated.length > 0) setLayout(migrated);
+          }
+        } catch (e) {
+          console.error('Failed to migrate legacy layout', e);
+        }
       }
     }
 
@@ -290,7 +329,7 @@ export function Dashboard() {
 
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem('widgetLayout_v4', JSON.stringify(layout));
+      localStorage.setItem('widgetLayout_v5', JSON.stringify(layout));
     }
   }, [layout, isMounted]);
 
@@ -523,13 +562,17 @@ export function Dashboard() {
     equitySparkline: <TrendingUp size={24} className="text-emerald-500" />,
     pnlCombined: <DollarSign size={24} className="text-emerald-500" />,
     dailyRisk: <Activity size={24} className="text-rose-500" />,
+    bestSession: <Trophy size={24} className="text-emerald-500" />,
+    worstSession: <AlertTriangle size={24} className="text-rose-500" />,
+    bestSetup: <Target size={24} className="text-emerald-500" />,
+    worstSetup: <Target size={24} className="text-rose-500" />,
     activeIdeas: <Lightbulb size={24} className="text-amber-500" />,
-    bestWorstSetups: <Target size={24} className="text-blue-500" />,
-    bestWorstSessions: <Clock size={24} className="text-purple-500" />,
     sessionTracker: <Clock size={24} className="text-blue-500" />,
     economicNews: <Globe size={24} className="text-rose-500" />,
     winRate: <Zap size={24} className="text-emerald-500" />,
     profitFactor: <Award size={24} className="text-blue-500" />,
+    bestWorstSetups: <Target size={24} className="text-blue-500" />,
+    bestWorstSessions: <Clock size={24} className="text-purple-500" />,
   };
 
   const sharedWidgetData = {
@@ -575,7 +618,7 @@ export function Dashboard() {
           {accounts.length === 0 && !isLoadingData && (
             <a
               href="/settings"
-              className="h-10 px-3 rounded-[18px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+              className="h-10 px-3.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
               title="Add a trading account in Settings"
             >
               <Plus size={14} />
@@ -590,10 +633,10 @@ export function Dashboard() {
             aria-pressed={isEditMode}
             title={isEditMode ? "Finish customization" : "Customize widgets"}
             className={cn(
-              "min-h-11 min-w-11 h-11 w-11 md:h-10 md:w-10 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95",
+              "min-h-11 min-w-11 h-11 w-11 md:h-10 md:w-10 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xs",
               isEditMode 
-                ? "bg-blue-500 text-white shadow-sm shadow-blue-500/20" 
-                : "bg-card border border-border-card text-text-muted hover:text-text-main hover:bg-canvas"
+                ? "bg-blue-500 text-white border border-blue-500 shadow-sm shadow-blue-500/20" 
+                : "bg-canvas border border-border-card text-text-muted hover:text-text-main hover:bg-card"
             )}
           >
             <SlidersHorizontal size={18} />
@@ -636,14 +679,14 @@ export function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setIsAddMenuOpen(true)}
-                  className="h-10 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-all active:scale-[0.98] shadow-sm shadow-blue-500/20 cursor-pointer"
+                  className="h-10 px-4 rounded-full bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-all active:scale-[0.98] shadow-sm shadow-blue-500/20 cursor-pointer"
                 >
                   Add Widget
                 </button>
                 <button
                   type="button"
                   onClick={restoreDefaultLayout}
-                  className="h-10 px-4 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+                  className="h-10 px-4 rounded-full bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
                 >
                   <RotateCcw size={14} />
                   Defaults
@@ -719,7 +762,9 @@ export function Dashboard() {
         hideFooter
       >
         <div className="flex flex-col gap-3 py-1">
-          {(Object.keys(WIDGET_REGISTRY) as Array<keyof typeof WIDGET_REGISTRY>).map(type => {
+          {(Object.keys(WIDGET_REGISTRY) as Array<keyof typeof WIDGET_REGISTRY>)
+            .filter(type => type !== 'bestWorstSetups' && type !== 'bestWorstSessions')
+            .map(type => {
             const entry = WIDGET_REGISTRY[type];
             return (
               <button

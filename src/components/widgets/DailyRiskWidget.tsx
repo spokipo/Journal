@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { Activity, SlidersHorizontal, RotateCcw, Check } from 'lucide-react';
+import { Activity, SlidersHorizontal, Check, X } from 'lucide-react';
 import type { WidgetProps } from './types';
 import { WidgetCard } from './common/WidgetCard';
 
@@ -11,16 +12,24 @@ export function DailyRiskWidget({
   dailyRiskLimit = 2.0, 
   onUpdateDailyRiskLimit 
 }: WidgetProps) {
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [tempLimit, setTempLimit] = useState(dailyRiskLimit);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [inputVal, setInputVal] = useState<string>(String(dailyRiskLimit));
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
-    setTempLimit(dailyRiskLimit);
+    setInputVal(String(dailyRiskLimit));
   }, [dailyRiskLimit]);
 
+  // Format risk number with flexible decimals (e.g. 1.0, 0.5, 0.25)
+  const formatRiskVal = (val: number) => {
+    if (!val && val !== 0) return '0.0';
+    const rounded = Math.round(val * 100) / 100;
+    return rounded % 1 === 0 ? rounded.toFixed(1) : rounded.toString();
+  };
+
   // Sum risk percentage of trades taken today
-  const effectiveLimit = Math.max(0.1, dailyRiskLimit);
+  const effectiveLimit = Math.max(0.01, dailyRiskLimit);
   const todayRiskUsed = todayTrades.reduce((sum, t) => sum + (Number(t.risk_percent) || 0), 0);
   const percentOfLimit = Math.min(100, Math.round((todayRiskUsed / effectiveLimit) * 100));
 
@@ -29,170 +38,239 @@ export function DailyRiskWidget({
   const statusColor = isOverLimit ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-blue-500';
   const progressBg = isOverLimit ? 'bg-rose-500' : isWarning ? 'bg-amber-500' : 'bg-blue-500';
 
-  const handleSave = (val: number) => {
-    onUpdateDailyRiskLimit?.(val);
-    setIsFlipped(false);
+  // Compute position for anchored popover
+  useEffect(() => {
+    if (!isConfigOpen || !triggerRef.current) return;
+
+    const updateCoords = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const popoverWidth = 240;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpwards = spaceBelow < 220 && rect.top > 220;
+
+      let left = rect.right - popoverWidth;
+      if (left < 12) left = 12;
+      if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+      }
+
+      if (openUpwards) {
+        setCoords({
+          bottom: window.innerHeight - rect.top + 6,
+          left,
+          width: popoverWidth,
+        });
+      } else {
+        setCoords({
+          top: rect.bottom + 6,
+          left,
+          width: popoverWidth,
+        });
+      }
+    };
+
+    updateCoords();
+    window.addEventListener('resize', updateCoords);
+    return () => window.removeEventListener('resize', updateCoords);
+  }, [isConfigOpen]);
+
+  const handleSave = () => {
+    const cleaned = inputVal.replace(',', '.').trim();
+    const parsed = parseFloat(cleaned);
+    if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
+      onUpdateDailyRiskLimit?.(parsed);
+      setIsConfigOpen(false);
+    }
   };
 
   return (
-    <div className="w-full h-full relative select-none" style={{ perspective: 1000 }}>
-      <motion.div
-        className="w-full h-full relative"
-        style={{ transformStyle: 'preserve-3d' }}
-        animate={{ rotateY: isFlipped ? 180 : 0 }}
-        transition={{ duration: 0.45, ease: [0.25, 1, 0.5, 1] }}
-        onAnimationStart={() => setIsAnimating(true)}
-        onAnimationComplete={() => setIsAnimating(false)}
-      >
-        {/* FRONT CARD */}
-        <div
-          className={cn(
-            "w-full h-full",
-            isFlipped ? "pointer-events-none" : "pointer-events-auto"
-          )}
-          style={{
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-          }}
+    <div className="w-full h-full relative select-none">
+      {size === 'small' ? (
+        <WidgetCard size={size} className="justify-between text-left">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+              <Activity size={14} className={statusColor} />
+              <span>Daily Risk</span>
+            </div>
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsConfigOpen(prev => !prev);
+              }}
+              title="Configure risk limit"
+              className={cn(
+                "w-8 h-8 rounded-full bg-canvas border border-border-card flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95",
+                isConfigOpen ? "border-blue-500 text-blue-500" : "text-text-muted hover:text-text-main hover:bg-card"
+              )}
+            >
+              <SlidersHorizontal size={14} />
+            </button>
+          </div>
+
+          <div className="my-auto">
+            <div className={cn("text-xl font-bold tabular-nums tracking-tight", statusColor)}>
+              {formatRiskVal(todayRiskUsed)}%
+            </div>
+            <div className="text-xs text-text-muted mt-0.5">
+              Limit: <span className="font-mono font-semibold text-text-main">{formatRiskVal(effectiveLimit)}%</span>
+            </div>
+          </div>
+
+          <div className="w-full">
+            <div className="flex items-center justify-between text-[0.6875rem] text-text-muted font-mono mb-1">
+              <span>{percentOfLimit}% used</span>
+              <span>{formatRiskVal(Math.max(0, effectiveLimit - todayRiskUsed))}% left</span>
+            </div>
+            <div className="w-full bg-canvas rounded-full h-1.5 overflow-hidden">
+              <div 
+                className={cn("h-full rounded-full transition-all duration-300", progressBg)} 
+                style={{ width: `${percentOfLimit}%` }} 
+              />
+            </div>
+          </div>
+        </WidgetCard>
+      ) : (
+        <WidgetCard 
+          title="Daily Risk Allocation" 
+          size={size}
+          action={
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsConfigOpen(prev => !prev);
+              }}
+              title="Configure risk limit"
+              className={cn(
+                "w-8 h-8 rounded-full bg-canvas border border-border-card flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95",
+                isConfigOpen ? "border-blue-500 text-blue-500" : "text-text-muted hover:text-text-main hover:bg-card"
+              )}
+            >
+              <SlidersHorizontal size={14} />
+            </button>
+          }
         >
-          {size === 'small' ? (
-            <WidgetCard size={size} className="justify-between items-center text-center relative">
-              <div className="w-full flex justify-between items-center pt-0.5 px-0.5">
-                <span className="w-8" />
-                <div className={cn("p-2 rounded-full bg-canvas shrink-0", statusColor)}>
-                  <Activity size={20} />
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsFlipped(true);
-                  }}
-                  title="Configure daily risk limit"
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-95"
-                >
-                  <SlidersHorizontal size={14} />
-                </button>
+          <div className="flex items-center justify-between gap-4 flex-1 h-full">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className={cn("text-2xl font-bold tabular-nums tracking-tight", statusColor)}>
+                  {formatRiskVal(todayRiskUsed)}%
+                </span>
+                <span className={cn(
+                  "text-xs font-semibold px-2 py-0.5 rounded-full",
+                  isOverLimit ? "bg-rose-500/10 text-rose-500" : isWarning ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
+                )}>
+                  {isOverLimit ? 'Limit Exceeded' : isWarning ? 'High Risk' : 'Healthy Range'}
+                </span>
               </div>
-
-              <div className="my-auto">
-                <div className={cn("text-2xl font-bold tabular-nums", statusColor)}>
-                  {todayRiskUsed.toFixed(1)}%
-                </div>
-                <div className="text-[0.6875rem] text-text-muted uppercase tracking-wider font-semibold mt-0.5">
-                  Limit: {effectiveLimit.toFixed(1)}%
-                </div>
+              <div className="text-xs text-text-muted mt-1.5 flex items-center gap-2">
+                <span>Limit: <span className="font-mono text-text-main font-semibold">{formatRiskVal(effectiveLimit)}%</span></span>
+                <span>•</span>
+                <span>Available: <span className={cn("font-mono font-bold", statusColor)}>
+                  {formatRiskVal(Math.max(0, effectiveLimit - todayRiskUsed))}%
+                </span></span>
               </div>
+            </div>
 
-              <div className="w-full bg-canvas rounded-full h-1.5 overflow-hidden">
+            <div className="w-48 bg-canvas rounded-[14px] p-2.5 flex flex-col justify-between shrink-0 h-full">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-muted font-medium">Daily Budget</span>
+                <span className="font-bold font-mono text-text-main">{percentOfLimit}%</span>
+              </div>
+              <div className="w-full bg-card rounded-full h-1.5 overflow-hidden my-1">
                 <div 
                   className={cn("h-full rounded-full transition-all duration-300", progressBg)} 
                   style={{ width: `${percentOfLimit}%` }} 
                 />
               </div>
-            </WidgetCard>
-          ) : (
-            <WidgetCard size={size}>
-              <div className="flex items-center justify-between mb-3 shrink-0">
-                <h3 className="text-text-muted font-medium text-sm">Daily Risk</h3>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsFlipped(true);
-                  }}
-                  className="h-8 px-3 rounded-full bg-canvas border border-border-card text-xs font-semibold text-text-muted hover:text-text-main transition-colors flex items-center gap-1.5 cursor-pointer active:scale-95"
-                >
-                  <SlidersHorizontal size={13} />
-                  <span>Limit: {effectiveLimit.toFixed(1)}%</span>
-                </button>
+              <div className="flex items-center justify-between text-[0.6875rem] text-text-muted font-mono">
+                <span>{todayTrades.length} trades</span>
+                <span>Max: {formatRiskVal(effectiveLimit)}%</span>
               </div>
+            </div>
+          </div>
+        </WidgetCard>
+      )}
 
-              <div className="flex items-end justify-between flex-1">
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className={cn("text-3xl font-bold tabular-nums", statusColor)}>
-                      {todayRiskUsed.toFixed(1)}%
-                    </span>
-                    <span className="text-xs text-text-muted font-medium">
-                      used today
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-muted mt-1.5">
-                    Limit: <span className="font-mono text-text-main font-semibold">{effectiveLimit.toFixed(1)}%</span> • Left: <span className={cn("font-mono font-semibold", statusColor)}>
-                      {Math.max(0, effectiveLimit - todayRiskUsed).toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-                <div className={cn("h-10 w-10 rounded-[18px] bg-canvas flex items-center justify-center shrink-0", statusColor)}>
-                  <Activity size={20} />
-                </div>
-              </div>
-              <div className="w-full bg-canvas rounded-full h-2 mt-4 overflow-hidden shrink-0">
-                <div 
-                  className={cn("h-full rounded-full transition-all duration-300", progressBg)} 
-                  style={{ width: `${percentOfLimit}%` }} 
-                />
-              </div>
-            </WidgetCard>
-          )}
-        </div>
-
-        {/* BACK CARD (FLIPPED 180 DEG) */}
-        <div
-          className={cn(
-            "w-full h-full absolute inset-0",
-            !isFlipped ? "pointer-events-none" : "pointer-events-auto"
-          )}
-          style={{
-            transform: 'rotateY(180deg)',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-          }}
-        >
-          <WidgetCard size={size} className="justify-between">
-            <div className="flex items-center justify-between shrink-0">
-              <span className="text-sm font-semibold text-text-main">Daily Risk Limit</span>
+      {/* ANCHORED CONTEXT MENU / POPOVER FOR CONFIGURATION PER DESIGN.MD §3 A & §5 */}
+      {isConfigOpen && coords && typeof document !== 'undefined' && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-transparent cursor-default"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsConfigOpen(false);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setIsConfigOpen(false);
+            }}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              top: coords.top,
+              bottom: coords.bottom,
+              left: coords.left,
+              width: coords.width,
+            }}
+            className="fixed z-50 bg-card border border-border-card rounded-[18px] p-3 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3 pb-1 border-b border-border-card/40">
+              <span className="text-xs font-semibold text-text-main">Set Daily Risk Limit</span>
               <button
                 type="button"
-                onClick={() => setIsFlipped(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-95"
+                onClick={() => setIsConfigOpen(false)}
+                className="w-6 h-6 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted hover:text-text-main"
               >
-                <RotateCcw size={14} />
+                <X size={12} />
               </button>
             </div>
 
-            <div className="my-auto flex items-center justify-center py-2">
-              <div className="relative flex items-center justify-center">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="20"
-                  value={tempLimit}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    if (!isNaN(val)) setTempLimit(val);
-                  }}
-                  className="w-24 h-11 text-center text-2xl font-bold font-mono text-text-main bg-canvas border border-border-card rounded-[18px] focus:outline-none focus:border-blue-500 tabular-nums px-2"
-                />
-                <span className="ml-2 text-xl font-bold text-text-muted font-mono">%</span>
-              </div>
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={inputVal}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^[0-9]*[.,]?[0-9]*$/.test(v)) {
+                    setInputVal(v);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSave();
+                  }
+                }}
+                placeholder="e.g. 0.5"
+                className="w-full h-9 text-center text-base font-bold font-mono text-text-main bg-canvas border border-border-card rounded-full focus:outline-none focus:border-blue-500 tabular-nums px-3"
+                autoFocus
+              />
+              <span className="font-bold text-text-muted font-mono text-sm">%</span>
             </div>
 
-            <div className="w-full shrink-0">
-              <button
-                type="button"
-                onClick={() => handleSave(tempLimit)}
-                className="w-full h-10 rounded-[18px] bg-blue-500 text-white hover:bg-blue-600 text-sm font-semibold transition-all shadow-sm cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5"
-              >
-                <Check size={16} />
-                <span>Apply</span>
-              </button>
-            </div>
-          </WidgetCard>
-        </div>
-      </motion.div>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="w-full h-9 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Check size={14} />
+              <span>Apply Limit</span>
+            </button>
+          </motion.div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }

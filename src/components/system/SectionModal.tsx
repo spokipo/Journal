@@ -63,6 +63,7 @@ export function SectionModal({
       onSave={handleSubmit}
       saveText={isEditing ? 'Save Changes' : 'Create Section'}
       isSaving={isSubmitting}
+      isForm={true}
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Section Title */}

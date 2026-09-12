@@ -65,12 +65,13 @@ html, body {
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-gutter: stable;
 }
 
-/* Base styles to prevent any blur/transparency as requested */
-* {
-  backdrop-filter: none !important;
+#main-scroll-container {
+  scrollbar-gutter: stable;
 }
+
 
 /* Custom Thin Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {

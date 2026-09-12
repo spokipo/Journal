@@ -77,6 +77,14 @@ export function JournalView() {
 
   const transitionLockRelease = useRef<(() => void) | null>(null);
 
+  // Очистка лока скролла при размонтировании компонента
+  useEffect(() => {
+    return () => {
+      transitionLockRelease.current?.();
+      transitionLockRelease.current = null;
+    };
+  }, []);
+
   const fetchData = useCallback(async (userId: string) => {
     if (!isSupabaseConfigured) return;
     setIsLoading(true);
@@ -363,69 +371,87 @@ export function JournalView() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 pb-16 w-full max-w-[960px] mx-auto">
-      {/* 1. Page Header */}
-      <JournalHeader
-        activeTab={activeTab}
-        totalCount={activeTab === 'trades' ? trades.length : ideas.length}
-        isLoading={isLoading}
-        onNewIdea={() => {
-          setEditingIdea(null);
-          setIsIdeaModalOpen(true);
-        }}
-        onLogTrade={() => {
-          setSelectedIdeaForTrade(null);
-          setIsTradeModalOpen(true);
-        }}
-      />
+      {/* 1. Page Header (Band reveal §3.1) */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <JournalHeader
+          activeTab={activeTab}
+          totalCount={activeTab === 'trades' ? trades.length : ideas.length}
+          isLoading={isLoading}
+          onNewIdea={() => {
+            setEditingIdea(null);
+            setIsIdeaModalOpen(true);
+          }}
+          onLogTrade={() => {
+            setSelectedIdeaForTrade(null);
+            setIsTradeModalOpen(true);
+          }}
+        />
+      </motion.div>
 
-      {/* 2. Metrics */}
-      <JournalMetrics
-        isLoading={isLoading}
-        activeTab={activeTab}
-        stats={stats}
-        outcomeCounts={outcomeCounts}
-        ideaStats={ideaStats}
-        showOutcomeBreakdown={showOutcomeBreakdown}
-        onToggleOutcomeBreakdown={() => setShowOutcomeBreakdown((prev) => !prev)}
-      />
+      {/* 2. Metrics (Band reveal со сдвигом §3.1) */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, delay: 0.04, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <JournalMetrics
+          isLoading={isLoading}
+          activeTab={activeTab}
+          stats={stats}
+          outcomeCounts={outcomeCounts}
+          ideaStats={ideaStats}
+          showOutcomeBreakdown={showOutcomeBreakdown}
+          onToggleOutcomeBreakdown={() => setShowOutcomeBreakdown((prev) => !prev)}
+        />
+      </motion.div>
 
-      {/* 3. Toolbar */}
-      <JournalToolbar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        selectedIdeaStatus={selectedIdeaStatus}
-        onIdeaStatusChange={setSelectedIdeaStatus}
-        filterSelectOptions={filterSelectOptions}
-        selectedFilterValues={selectedFilterValues}
-        onFilterChange={handleFilterChange}
-        activeFilterCount={activeFilterCount}
-        resetFilters={resetFilters}
-        removeFilter={removeFilter}
-        selectedAccounts={selectedAccounts}
-        selectedOutcomes={selectedOutcomes}
-        selectedSessions={selectedSessions}
-        selectedSetups={selectedSetups}
-        selectedMistakes={selectedMistakes}
-        accountsMap={accountsMap}
-        playbooks={playbooks}
-        mistakes={mistakes}
-      />
+      {/* 3. Toolbar (Band reveal chrome §3.1) */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <JournalToolbar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          selectedIdeaStatus={selectedIdeaStatus}
+          onIdeaStatusChange={setSelectedIdeaStatus}
+          filterSelectOptions={filterSelectOptions}
+          selectedFilterValues={selectedFilterValues}
+          onFilterChange={handleFilterChange}
+          activeFilterCount={activeFilterCount}
+          resetFilters={resetFilters}
+          removeFilter={removeFilter}
+          selectedAccounts={selectedAccounts}
+          selectedOutcomes={selectedOutcomes}
+          selectedSessions={selectedSessions}
+          selectedSetups={selectedSetups}
+          selectedMistakes={selectedMistakes}
+          accountsMap={accountsMap}
+          playbooks={playbooks}
+          mistakes={mistakes}
+        />
+      </motion.div>
 
-      {/* 4. Content Area */}
+      {/* 4. Content Area (Item-stagger внутри карточек, AnimatePresence для смены состояний) */}
       <AnimatePresence mode="wait">
         {isLoading ? (
           <motion.div
-            key="list-loading"
+            key="journal-list-loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
             <ListSkeleton viewMode={viewMode} />
           </motion.div>
@@ -449,15 +475,15 @@ export function JournalView() {
             />
           ) : (
             <motion.div
-              key="trades-content"
+              key="journal-trades-content"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               className={cn(
                 viewMode === 'grid'
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                  : "flex flex-col space-y-3"
+                  ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+                  : "flex flex-col gap-3"
               )}
             >
               {filteredTrades.map((t, idx) => (
@@ -492,15 +518,15 @@ export function JournalView() {
             />
           ) : (
             <motion.div
-              key="ideas-content"
+              key="journal-ideas-content"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               className={cn(
                 viewMode === 'grid'
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                  : "flex flex-col space-y-3"
+                  ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+                  : "flex flex-col gap-3"
               )}
             >
               {filteredIdeas.map((i, idx) => (
@@ -525,7 +551,7 @@ export function JournalView() {
         )}
       </AnimatePresence>
 
-      {/* 5. Overlays Layer */}
+      {/* 5. Overlays Layer (§1 App Shell) */}
       <TradeModal
         isOpen={isTradeModalOpen}
         onClose={() => {
@@ -566,6 +592,7 @@ export function JournalView() {
         }}
         onDelete={handleDeleteIdea}
         onConvertToTrade={(idea) => {
+          setIsIdeaModalOpen(false);
           setSelectedIdeaForTrade(idea);
           transitionLockRelease.current = lockBodyScroll();
           setTimeout(() => {

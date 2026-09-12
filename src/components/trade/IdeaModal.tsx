@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   Lightbulb, 
   Loader2, 
-  UploadCloud, 
-  Image as ImageIcon, 
-  Trash2, 
-  ZoomIn, 
   Zap,
   TrendingUp,
   TrendingDown,
@@ -15,14 +11,21 @@ import {
   RotateCcw,
   Edit3,
   Ban,
-  CheckCircle2
+  CheckCircle2,
+  MoreHorizontal,
+  Pencil,
+  Check,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { optimizeImage } from '../../lib/imageOptimizer';
-import { lockBodyScroll } from '../../lib/scrollLock';
 import { TickerSelect } from '../ui/TickerSelect';
 import { ImageViewerModal } from '../ui/ImageViewerModal';
+import { TradeModalShell } from './TradeModalShell';
+import { DirectionToggle } from './DirectionToggle';
+import { ScreenshotsSection } from './ScreenshotsSection';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
+import { useTradeImageUpload } from './useTradeImageUpload';
 
 export type IdeaStatus = 'active' | 'executed' | 'invalidated' | 'expired';
 
@@ -71,23 +74,39 @@ export function IdeaModal({
   const [symbol, setSymbol] = useState('');
   const [direction, setDirection] = useState<'LONG' | 'SHORT'>('LONG');
   const [notes, setNotes] = useState('');
-  const [screenshots, setScreenshots] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('active');
   const [now, setNow] = useState<number>(Date.now());
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMobileActionMenuOpen, setIsMobileActionMenuOpen] = useState(false);
 
-  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const skipPillTransition = useRef(true);
+  // Reusable Image Upload Hook
+  const {
+    screenshots,
+    isUploading,
+    uploadError,
+    isDragging,
+    viewerIndex,
+    setViewerIndex,
+    fileInputRef,
+    handleFileInputChange,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleRemoveScreenshot,
+  } = useTradeImageUpload({
+    user,
+    folder: 'ideas',
+    isOpen,
+    isEditing,
+    initialScreenshots: editingIdea?.screenshots ? (Array.isArray(editingIdea.screenshots) ? editingIdea.screenshots : []) : [],
+  });
 
-  // Live timer interval (ticks every 1s when modal is open)
+  // Countdown clock
   useEffect(() => {
     if (!isOpen) return;
     setNow(Date.now());
@@ -98,29 +117,15 @@ export function IdeaModal({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    return lockBodyScroll();
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  useEffect(() => {
     if (isOpen) {
-      skipPillTransition.current = true;
+      setIsMobileActionMenuOpen(false);
+      setShowDeleteConfirm(false);
       if (editingIdea) {
         setIsEditing(false);
         setSymbol(editingIdea.symbol || '');
         const rawDir = String(editingIdea.direction || '').toUpperCase();
         setDirection(rawDir === 'SHORT' ? 'SHORT' : 'LONG');
         setNotes(editingIdea.notes || '');
-        setScreenshots(Array.isArray(editingIdea.screenshots) ? editingIdea.screenshots : []);
         setStatus(editingIdea.status || 'active');
         
         if (editingIdea.expires_at) {
@@ -134,12 +139,10 @@ export function IdeaModal({
         setSymbol('');
         setDirection('LONG');
         setNotes('');
-        setScreenshots([]);
         setStatus('active');
         setExpiresAt(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
       }
       setError(null);
-      setUploadError(null);
     }
   }, [isOpen, editingIdea]);
 
@@ -165,6 +168,7 @@ export function IdeaModal({
   };
 
   const handleExtendLife = async () => {
+    setIsMobileActionMenuOpen(false);
     const nextExp = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     setExpiresAt(nextExp);
     setStatus('active');
@@ -181,6 +185,7 @@ export function IdeaModal({
   };
 
   const handleInvalidate = async () => {
+    setIsMobileActionMenuOpen(false);
     setStatus('invalidated');
     if (editingIdea?.id && isSupabaseConfigured) {
       let query = supabase
@@ -193,11 +198,13 @@ export function IdeaModal({
     }
   };
 
-  const handleDelete = async () => {
+  const handleConfirmDelete = async () => {
     if (!editingIdea?.id || !onDelete) return;
+    setIsMobileActionMenuOpen(false);
     setIsDeleting(true);
     try {
       await onDelete(editingIdea.id);
+      setShowDeleteConfirm(false);
       onClose();
     } catch (err) {
       console.error('Delete error:', err);
@@ -206,97 +213,8 @@ export function IdeaModal({
     }
   };
 
-  useEffect(() => {
-    if (!isOpen || !isEditing) return;
-
-    const handlePaste = async (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) await processAndUploadFile(file);
-          break;
-        }
-      }
-    };
-
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, [isOpen, isEditing, user]);
-
-  const processAndUploadFile = async (file: File | Blob) => {
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const compressedBlob = await optimizeImage(file, 1920, 0.82);
-      const userId = user?.id || 'anonymous';
-      const randomKey = Math.random().toString(36).substring(2, 8);
-      const filePath = `ideas/${userId}/${Date.now()}-${randomKey}.webp`;
-
-      let finalUrl = '';
-
-      if (isSupabaseConfigured && user) {
-        const { error: uploadErr } = await supabase.storage
-          .from('playbook-screens')
-          .upload(filePath, compressedBlob, {
-            contentType: 'image/webp',
-            upsert: false,
-          });
-
-        if (uploadErr) {
-          finalUrl = URL.createObjectURL(compressedBlob);
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('playbook-screens')
-            .getPublicUrl(filePath);
-          finalUrl = publicUrl;
-        }
-      } else {
-        finalUrl = URL.createObjectURL(compressedBlob);
-      }
-
-      setScreenshots((prev) => [...prev, finalUrl]);
-    } catch (err: any) {
-      console.error('Screenshot processing failed:', err);
-      setUploadError(err?.message || 'Failed to process screenshot');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    for (let i = 0; i < files.length; i++) {
-      await processAndUploadFile(files[i]);
-    }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        if (files[i].type.startsWith('image/')) {
-          await processAndUploadFile(files[i]);
-        }
-      }
-    }
-  };
-
-  const handleRemoveScreenshot = (indexToRemove: number) => {
-    setScreenshots((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!symbol) {
       setError('Please select an asset ticker');
       return;
@@ -326,7 +244,6 @@ export function IdeaModal({
           if (user?.id) updateQuery = updateQuery.eq('user_id', user.id);
           let { data, error: updateErr } = await updateQuery.select();
 
-          // Fallback if direction check constraint requires opposite casing
           if (updateErr && updateErr.message?.toLowerCase().includes('direction')) {
             const altDir = direction === 'LONG' ? 'long' : 'short';
             let retryQuery = supabase
@@ -346,6 +263,7 @@ export function IdeaModal({
         } else {
           onSuccess?.({ ...editingIdea, ...payload });
         }
+        setIsEditing(false);
       } else {
         if (isSupabaseConfigured && user?.id) {
           const insertPayload = { ...payload, user_id: user.id };
@@ -354,7 +272,6 @@ export function IdeaModal({
             .insert([insertPayload])
             .select();
 
-          // Fallback if direction check constraint requires opposite casing
           if (insertErr && insertErr.message?.toLowerCase().includes('direction')) {
             const altDir = direction === 'LONG' ? 'long' : 'short';
             const retry = await supabase
@@ -372,13 +289,12 @@ export function IdeaModal({
         } else {
           onSuccess?.(payload);
         }
+        onClose();
       }
-
-      onClose();
     } catch (err: any) {
       console.error('Save failed:', err);
       if (err?.message?.includes('ideas_direction_check')) {
-        setError('Database error: check constraint "ideas_direction_check" failed. Please execute migration 20260910000002_fix_ideas_direction_constraint.sql in your Supabase SQL Editor.');
+        setError('Database error: check constraint "ideas_direction_check" failed.');
       } else {
         setError(err?.message || 'Failed to save trade idea');
       }
@@ -387,437 +303,514 @@ export function IdeaModal({
     }
   };
 
+  const handleCancelEditing = () => {
+    if (editingIdea) {
+      setSymbol(editingIdea.symbol || '');
+      const rawDir = String(editingIdea.direction || '').toUpperCase();
+      setDirection(rawDir === 'SHORT' ? 'SHORT' : 'LONG');
+      setNotes(editingIdea.notes || '');
+      setIsEditing(false);
+      setError(null);
+    } else {
+      onClose();
+    }
+  };
+
+  const modalTitle = isEditing 
+    ? (editingIdea ? 'Edit Watchlist Idea' : 'New Watchlist Idea')
+    : `${symbol || 'Idea'} Watchlist Idea`;
+
+  const mobileTitle = isEditing
+    ? (editingIdea ? 'Edit Idea' : 'New Watchlist Idea')
+    : `${symbol || 'Idea'} Details`;
+
   return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            key="idea-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4"
-          >
-            <div onClick={onClose} className="absolute inset-0 bg-black/60 hidden md:block" />
+      <TradeModalShell
+        isOpen={isOpen}
+        onClose={onClose}
+        title={modalTitle}
+        mobileTitle={mobileTitle}
+        desktopIcon={<Lightbulb size={20} />}
+        desktopIconClass="bg-amber-500/10 text-amber-500"
+        onSubmit={isEditing ? handleSubmit : undefined}
+        // Mobile Header 3-Slot Actions (per design.md §5)
+        mobileLeftAction={{
+          icon: <X size={18} />,
+          onClick: isEditing ? handleCancelEditing : onClose,
+          ariaLabel: isEditing ? 'Cancel editing' : 'Close modal',
+        }}
+        mobileRightAction={
+          isEditing ? (
+            {
+              icon: isSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />,
+              onClick: handleSubmit,
+              ariaLabel: 'Save idea',
+              isPrimary: true,
+              disabled: isSaving || isUploading || !symbol,
+            }
+          ) : (
+            // §5 MoreHorizontal menu for secondary actions
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsMobileActionMenuOpen((prev) => !prev)}
+                aria-label="More actions"
+                className="w-11 h-11 rounded-full bg-canvas border border-border-card text-text-main hover:bg-card active:scale-95 shadow-xs flex items-center justify-center transition-all cursor-pointer"
+              >
+                <MoreHorizontal size={18} />
+              </button>
 
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-full max-md:h-[100dvh] md:w-[760px] lg:w-[860px] md:max-h-[85vh] bg-card rounded-none md:rounded-[26px] md:border md:border-border-card shadow-2xl overflow-hidden flex flex-col z-10"
-              style={{
-                paddingTop: 'env(safe-area-inset-top, 0px)',
-                paddingBottom: 'env(safe-area-inset-bottom, 0px)'
-              }}
+              {/* Anchored Popover Menu complying with §5 Popover rules:
+                  - Transparent non-darkening dismiss layer
+                  - Scroll NOT locked
+                  - Surface L2 (rounded-[18px]), items L0 (rounded-[14px])
+                  - Destructive item separated by border-t */}
+              {isMobileActionMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent cursor-default"
+                    onClick={() => setIsMobileActionMenuOpen(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-13 w-[200px] bg-card border border-border-card rounded-[18px] p-1.5 shadow-2xl z-50 flex flex-col gap-0.5"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileActionMenuOpen(false);
+                        setIsEditing(true);
+                      }}
+                      className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas transition-colors text-left w-full cursor-pointer"
+                    >
+                      <Pencil size={15} className="text-text-muted" />
+                      <span>Edit Idea</span>
+                    </button>
+
+                    {effectiveStatus === 'active' && onConvertToTrade && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMobileActionMenuOpen(false);
+                          onClose();
+                          onConvertToTrade({
+                            ...editingIdea,
+                            symbol,
+                            direction,
+                            notes: notes.trim() || null,
+                            screenshots,
+                          });
+                        }}
+                        className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left w-full cursor-pointer"
+                      >
+                        <Zap size={15} />
+                        <span>Execute Trade</span>
+                      </button>
+                    )}
+
+                    {effectiveStatus === 'active' && (
+                      <button
+                        type="button"
+                        onClick={handleInvalidate}
+                        className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-amber-500 hover:bg-amber-500/10 transition-colors text-left w-full cursor-pointer"
+                      >
+                        <Ban size={15} />
+                        <span>Invalidate Idea</span>
+                      </button>
+                    )}
+
+                    {(effectiveStatus === 'invalidated' || effectiveStatus === 'expired') && (
+                      <button
+                        type="button"
+                        onClick={handleExtendLife}
+                        className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-blue-500 hover:bg-blue-500/10 transition-colors text-left w-full cursor-pointer"
+                      >
+                        <RotateCcw size={15} />
+                        <span>Reactivate (+24h)</span>
+                      </button>
+                    )}
+
+                    {onDelete && (
+                      <>
+                        <div className="border-t border-border-card/40 my-0.5" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMobileActionMenuOpen(false);
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-rose-500 hover:bg-rose-500/10 transition-colors text-left w-full cursor-pointer"
+                        >
+                          <Trash2 size={15} />
+                          <span>Delete Idea</span>
+                        </button>
+                      </>
+                    )}
+                  </motion.div>
+                </>
+              )}
+            </div>
+          )
+        }
+        // Desktop Header Actions
+        desktopHeaderActions={
+          !isEditing && editingIdea && (
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="h-10 px-4 rounded-full bg-card border border-border-card hover:bg-canvas text-sm font-medium text-text-main flex items-center gap-2 transition-colors cursor-pointer active:scale-95 shadow-xs"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-5 md:px-8 md:py-6 border-b border-border-card shrink-0">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="flex w-8 h-8 rounded-[14px] bg-amber-500/10 text-amber-500 items-center justify-center font-bold text-sm shrink-0">
-                    <Lightbulb size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-text-main truncate">
-                      {editingIdea ? (isEditing ? 'Edit Watchlist Idea' : `${symbol} Watchlist Idea`) : 'New Watchlist Idea'}
-                    </h2>
+              <Edit3 size={16} />
+              <span>Edit</span>
+            </button>
+          )
+        }
+        // Desktop Footer Actions
+        desktopFooterLeft={
+          editingIdea && onDelete && (
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setShowDeleteConfirm(true)}
+              title="Delete Idea"
+              className="h-10 px-4 rounded-full flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors cursor-pointer active:scale-95 disabled:opacity-50 text-sm font-medium"
+            >
+              {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              <span>Delete</span>
+            </button>
+          )
+        }
+        desktopFooterRight={
+          isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={handleCancelEditing}
+                className="h-10 px-5 rounded-full bg-card border border-border-card text-sm font-medium text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving || isUploading || !symbol}
+                className="h-10 px-5 rounded-full bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
+              >
+                {isSaving && <Loader2 size={16} className="animate-spin shrink-0" />}
+                <span>{editingIdea ? 'Save Changes' : 'Create Idea'}</span>
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              {effectiveStatus === 'active' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleInvalidate}
+                    className="h-10 px-4 rounded-full bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-[0.98]"
+                  >
+                    <Ban size={15} />
+                    <span>Invalidate Idea</span>
+                  </button>
+
+                  {onConvertToTrade && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onConvertToTrade({
+                          ...editingIdea,
+                          symbol,
+                          direction,
+                          notes: notes.trim() || null,
+                          screenshots,
+                        });
+                      }}
+                      className="h-10 px-5 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm shadow-emerald-500/20 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Zap size={15} />
+                      <span>Execute Trade</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {(effectiveStatus === 'invalidated' || effectiveStatus === 'expired') && (
+                <button
+                  type="button"
+                  onClick={handleExtendLife}
+                  className="h-10 px-5 rounded-full bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <RotateCcw size={15} />
+                  <span>Reactivate (+24h)</span>
+                </button>
+              )}
+
+              {effectiveStatus === 'executed' && (
+                <div className="h-10 px-4 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 size={15} />
+                  <span>Executed</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-10 px-5 rounded-full bg-card border border-border-card text-sm font-medium text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer active:scale-95"
+              >
+                Close
+              </button>
+            </div>
+          )
+        }
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          {!isEditing && editingIdea ? (
+            <motion.div
+              key="idea-view-mode"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-5"
+            >
+              {/* Direction / Status / Lifespan Metrics Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 bg-card md:bg-canvas border border-border-card rounded-[18px]">
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted">Direction</span>
+                  <div className="mt-1 font-bold text-sm">
+                    {direction === 'LONG' ? (
+                      <span className="text-emerald-500 flex items-center gap-1"><TrendingUp size={14} /> Long Bias</span>
+                    ) : (
+                      <span className="text-rose-500 flex items-center gap-1"><TrendingDown size={14} /> Short Bias</span>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {editingIdea && !isEditing && (
+                <div className="p-3.5 bg-card md:bg-canvas border border-border-card rounded-[18px]">
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted">Status</span>
+                  <div className="mt-1">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-xs uppercase font-bold",
+                      effectiveStatus === 'executed' ? "bg-emerald-500/10 text-emerald-500" :
+                      effectiveStatus === 'invalidated' ? "bg-rose-500/10 text-rose-500" :
+                      effectiveStatus === 'expired' ? "bg-canvas text-text-muted border border-border-card" :
+                      "bg-amber-500/10 text-amber-500"
+                    )}>
+                      {effectiveStatus === 'executed' ? 'Executed' :
+                       effectiveStatus === 'invalidated' ? 'Invalidated' :
+                       effectiveStatus === 'expired' ? 'Expired' : 'Active'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-card md:bg-canvas border border-border-card rounded-[18px] flex items-center justify-between col-span-2 sm:col-span-1">
+                  <div>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted flex items-center gap-1">
+                      <Clock size={11} /> Lifespan
+                    </span>
+                    <div className="mt-1 font-mono font-bold text-xs text-text-main tabular-nums">
+                      {effectiveStatus === 'active' ? (getRemainingTimeText() || 'Active') :
+                       effectiveStatus === 'executed' ? 'Executed' :
+                       effectiveStatus === 'invalidated' ? 'Invalidated' : 'Expired'}
+                    </div>
+                  </div>
+                  {effectiveStatus === 'active' ? (
                     <button
                       type="button"
-                      onClick={() => setIsEditing(true)}
-                      className="h-9 px-3 rounded-[14px] bg-card border border-border-card hover:bg-canvas text-xs font-semibold text-text-main flex items-center gap-1.5 transition-colors cursor-pointer"
+                      onClick={handleExtendLife}
+                      className="h-7 px-3 rounded-full bg-card border border-border-card text-[0.6875rem] font-semibold text-text-main flex items-center gap-1 hover:bg-canvas transition-colors cursor-pointer active:scale-95 shadow-xs"
                     >
-                      <Edit3 size={14} />
-                      <span>Edit</span>
+                      <RotateCcw size={10} /> +24h
                     </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Close modal"
-                    className="w-11 h-11 md:w-9 md:h-9 rounded-full bg-card md:bg-transparent border border-border-card md:border-transparent flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer shrink-0"
-                  >
-                    <X size={18} />
-                  </button>
+                  ) : (effectiveStatus === 'invalidated' || effectiveStatus === 'expired') ? (
+                    <button
+                      type="button"
+                      onClick={handleExtendLife}
+                      className="h-7 px-3 rounded-full bg-card border border-border-card text-[0.6875rem] font-semibold text-blue-500 flex items-center gap-1 hover:bg-canvas transition-colors cursor-pointer active:scale-95 shadow-xs"
+                    >
+                      <RotateCcw size={10} /> Reactivate
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
-              {/* READ-ONLY VIEW */}
-              {!isEditing && editingIdea ? (
-                <div className="px-6 py-5 md:px-8 md:py-6 overflow-y-auto flex-1 custom-scrollbar space-y-5 flex flex-col justify-between">
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div className="p-3.5 bg-canvas border border-border-card rounded-[18px]">
-                        <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted">Direction</span>
-                        <div className="mt-1 font-bold text-sm">
-                          {direction === 'LONG' ? (
-                            <span className="text-emerald-500 flex items-center gap-1"><TrendingUp size={14} /> Long Bias</span>
-                          ) : (
-                            <span className="text-rose-500 flex items-center gap-1"><TrendingDown size={14} /> Short Bias</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 bg-canvas border border-border-card rounded-[18px]">
-                        <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted">Status</span>
-                        <div className="mt-1">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-xs uppercase font-bold",
-                            effectiveStatus === 'executed' ? "bg-emerald-500/10 text-emerald-500" :
-                            effectiveStatus === 'invalidated' ? "bg-rose-500/10 text-rose-500" :
-                            effectiveStatus === 'expired' ? "bg-canvas text-text-muted border border-border-card" :
-                            "bg-amber-500/10 text-amber-500"
-                          )}>
-                            {effectiveStatus === 'executed' ? 'Executed' :
-                             effectiveStatus === 'invalidated' ? 'Invalidated' :
-                             effectiveStatus === 'expired' ? 'Expired' : 'Active'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 bg-canvas border border-border-card rounded-[18px] flex items-center justify-between col-span-2 sm:col-span-1">
-                        <div>
-                          <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted flex items-center gap-1">
-                            <Clock size={11} /> Lifespan
-                          </span>
-                          <div className="mt-1 font-mono font-bold text-xs text-text-main tabular-nums">
-                            {effectiveStatus === 'active' ? (getRemainingTimeText() || 'Active') :
-                             effectiveStatus === 'executed' ? 'Executed' :
-                             effectiveStatus === 'invalidated' ? 'Invalidated' : 'Expired'}
-                          </div>
-                        </div>
-                        {effectiveStatus === 'active' ? (
-                          <button
-                            type="button"
-                            onClick={handleExtendLife}
-                            className="h-7 px-2.5 rounded-[12px] bg-card border border-border-card text-[0.6875rem] font-semibold text-text-main flex items-center gap-1 hover:bg-canvas transition-colors cursor-pointer"
-                          >
-                            <RotateCcw size={10} /> +24h
-                          </button>
-                        ) : (effectiveStatus === 'invalidated' || effectiveStatus === 'expired') ? (
-                          <button
-                            type="button"
-                            onClick={handleExtendLife}
-                            className="h-7 px-2.5 rounded-[12px] bg-card border border-border-card text-[0.6875rem] font-semibold text-blue-500 flex items-center gap-1 hover:bg-canvas transition-colors cursor-pointer"
-                          >
-                            <RotateCcw size={10} /> Reactivate
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {notes && (
-                      <div className="p-4 bg-canvas border border-border-card rounded-[18px] space-y-1">
-                        <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted">
-                          Trade Rationale & Key Triggers
-                        </span>
-                        <p className="text-xs text-text-main whitespace-pre-wrap leading-relaxed">
-                          {notes}
-                        </p>
-                      </div>
-                    )}
-
-                    {screenshots.length > 0 && (
-                      <div className="space-y-2">
-                        <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted flex items-center gap-1.5">
-                          <ImageIcon size={14} /> Chart Snapshots ({screenshots.length})
-                        </span>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {screenshots.map((url, idx) => (
-                            <div
-                              key={url + idx}
-                              onClick={() => setViewerIndex(idx)}
-                              className="relative aspect-video rounded-[14px] overflow-hidden border border-border-card bg-canvas group shadow-xs cursor-pointer"
-                            >
-                              <img src={url} alt={`Chart ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                <span className="text-xs font-semibold flex items-center gap-1 bg-black/60 px-2.5 py-1 rounded-full">
-                                  <ZoomIn size={12} /> View
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="px-4 py-3 md:px-8 md:py-5 border-t border-border-card flex items-center justify-between gap-2 md:gap-3 shrink-0 w-full max-w-full overflow-hidden">
-                    <div>
-                      {onDelete && (
-                        <button
-                          type="button"
-                          disabled={isDeleting}
-                          onClick={handleDelete}
-                          title="Delete Idea"
-                          aria-label="Delete Idea"
-                          className="w-11 h-11 md:h-10 md:w-auto md:px-4 flex items-center justify-center bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-[18px] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                        >
-                          {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={16} />}
-                          <span className="hidden md:inline ml-1.5 text-xs font-semibold">Delete</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className="hidden md:flex h-10 px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer items-center justify-center shrink-0"
-                      >
-                        Close
-                      </button>
-
-                      {effectiveStatus === 'active' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={handleInvalidate}
-                            title="Invalidate Idea"
-                            aria-label="Invalidate Idea"
-                            className="w-11 h-11 md:h-10 md:w-auto md:px-4 rounded-[18px] bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 active:scale-[0.98]"
-                          >
-                            <Ban size={15} className="shrink-0" />
-                            <span className="hidden md:inline">Invalidate Idea</span>
-                          </button>
-
-                          {onConvertToTrade && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onClose();
-                                onConvertToTrade({
-                                  ...editingIdea,
-                                  symbol,
-                                  direction,
-                                  notes: notes.trim() || null,
-                                  screenshots,
-                                });
-                              }}
-                              className="h-11 md:h-10 px-4 md:px-5 flex-1 md:flex-initial rounded-[18px] bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm shadow-emerald-500/20 cursor-pointer flex items-center justify-center gap-1.5 truncate"
-                            >
-                              <Zap size={15} className="shrink-0" />
-                              <span className="truncate">Execute Trade</span>
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                      {(effectiveStatus === 'invalidated' || effectiveStatus === 'expired') && (
-                        <button
-                          type="button"
-                          onClick={handleExtendLife}
-                          className="h-11 md:h-10 px-4 flex-1 md:flex-initial rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 truncate"
-                        >
-                          <RotateCcw size={15} className="shrink-0" />
-                          <span className="truncate">Reactivate (+24h)</span>
-                        </button>
-                      )}
-
-                      {effectiveStatus === 'executed' && (
-                        <div className="h-11 md:h-10 px-3.5 rounded-[18px] bg-emerald-500/10 text-emerald-500 text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0">
-                          <CheckCircle2 size={15} className="shrink-0" />
-                          <span>Executed</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+              {/* Rationale & Key Triggers */}
+              {notes && (
+                <div className="p-4 bg-card md:bg-canvas border border-border-card rounded-[18px] space-y-1">
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted">
+                    Trade Rationale & Key Triggers
+                  </span>
+                  <p className="text-xs text-text-main whitespace-pre-wrap leading-relaxed">
+                    {notes}
+                  </p>
                 </div>
-              ) : (
-                /* EDIT/CREATE FORM */
-                <form 
-                  onSubmit={handleSubmit} 
-                  className="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-between"
-                >
-                  <div className="px-6 py-5 md:px-8 md:py-6 space-y-5 flex-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                      {/* РЯД 1: Asset / Instrument (слева) + Direction Bias (справа) */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between h-5">
-                          <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
-                            Asset / Instrument <span className="text-rose-500">*</span>
-                          </label>
-                        </div>
-                        <TickerSelect value={symbol} onChange={(sym) => setSymbol(sym)} />
-                      </div>
+              )}
 
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between h-5">
-                          <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
-                            Direction Bias
-                          </label>
-                        </div>
-                        <div className="relative grid grid-cols-2 gap-1 p-1 bg-canvas border border-border-card rounded-[18px] h-11 md:h-10 items-stretch">
-                          <button
-                            type="button"
-                            onClick={() => { skipPillTransition.current = false; setDirection('LONG'); }}
-                            className={cn(
-                              "relative z-10 h-full rounded-[14px] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors cursor-pointer select-none",
-                              direction === 'LONG' ? "text-white" : "text-text-muted hover:text-text-main"
-                            )}
-                          >
-                            {direction === 'LONG' && (
-                              <motion.div
-                                layoutId="idea-direction-pill"
-                                transition={skipPillTransition.current ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35 }}
-                                className="absolute inset-0 bg-emerald-500 rounded-[14px] shadow-sm -z-10"
-                              />
-                            )}
-                            <TrendingUp size={14} />
-                            <span>Long Bias</span>
-                          </button>
+              {/* Chart Snapshots */}
+              <ScreenshotsSection
+                screenshots={screenshots}
+                isEditing={false}
+                onViewScreenshot={(idx) => setViewerIndex(idx)}
+              />
 
-                          <button
-                            type="button"
-                            onClick={() => { skipPillTransition.current = false; setDirection('SHORT'); }}
-                            className={cn(
-                              "relative z-10 h-full rounded-[14px] flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors cursor-pointer select-none",
-                              direction === 'SHORT' ? "text-white" : "text-text-muted hover:text-text-main"
-                            )}
-                          >
-                            {direction === 'SHORT' && (
-                              <motion.div
-                                layoutId="idea-direction-pill"
-                                transition={skipPillTransition.current ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 35 }}
-                                className="absolute inset-0 bg-rose-500 rounded-[14px] shadow-sm -z-10"
-                              />
-                            )}
-                            <TrendingDown size={14} />
-                            <span>Short Bias</span>
-                          </button>
-                        </div>
-                      </div>
+              {/* Mobile Quick Action Buttons in View Mode */}
+              <div className="space-y-2 pt-2 md:hidden">
+                {effectiveStatus === 'active' && onConvertToTrade && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onConvertToTrade({
+                        ...editingIdea,
+                        symbol,
+                        direction,
+                        notes: notes.trim() || null,
+                        screenshots,
+                      });
+                    }}
+                    className="w-full h-11 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-95 flex items-center justify-center gap-2 shadow-xs transition-all"
+                  >
+                    <Zap size={16} />
+                    <span>Execute Trade</span>
+                  </button>
+                )}
 
-                      {/* РЯД 2: Trade Rationale & Key Triggers (на всю ширину) */}
-                      <div className="md:col-span-2 space-y-1.5">
-                        <div className="flex items-center justify-between h-5">
-                          <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
-                            Trade Rationale & Key Triggers
-                          </label>
-                        </div>
-                        <textarea
-                          rows={3}
-                          value={notes}
-                          onChange={(e) => setNotes(e.target.value)}
-                          placeholder="Session bias, target liquidity pool, reaction level..."
-                          className="w-full bg-canvas border border-border-card rounded-[18px] p-3 text-xs text-text-main placeholder:text-text-muted/60 outline-none focus:border-blue-500 transition-colors resize-none"
-                        />
-                      </div>
+                {(effectiveStatus === 'invalidated' || effectiveStatus === 'expired') && (
+                  <button
+                    type="button"
+                    onClick={handleExtendLife}
+                    className="w-full h-11 rounded-full bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-95 flex items-center justify-center gap-2 shadow-xs transition-all"
+                  >
+                    <RotateCcw size={16} />
+                    <span>Reactivate (+24h)</span>
+                  </button>
+                )}
 
-                      {/* РЯД 3: Chart Examples (на всю ширину) */}
-                      <div className="md:col-span-2 space-y-2">
-                        <div className="flex items-center justify-between h-5">
-                          <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-                            <ImageIcon size={12} /> Chart Examples ({screenshots.length})
-                          </label>
-                          <span className="text-[0.6875rem] text-text-muted">Paste: Ctrl+V</span>
-                        </div>
-
-                        {screenshots.length > 0 && (
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {screenshots.map((url, idx) => (
-                              <div
-                                key={url + idx}
-                                onClick={() => setViewerIndex(idx)}
-                                className="relative aspect-video rounded-[14px] overflow-hidden border border-border-card bg-canvas group shadow-xs cursor-pointer"
-                              >
-                                <img src={url} alt={`Chart ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); handleRemoveScreenshot(idx); }}
-                                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-rose-500 text-white flex items-center justify-center transition-colors shadow cursor-pointer z-10"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <div
-                          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                          onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-                          onDrop={handleDrop}
-                          onClick={() => fileInputRef.current?.click()}
-                          className={cn(
-                            "border border-dashed rounded-[18px] p-3 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-1",
-                            isDragging ? "border-blue-500 bg-blue-500/5" : "border-border-card hover:border-blue-500/60 bg-canvas/40"
-                          )}
-                        >
-                          <input type="file" ref={fileInputRef} onChange={handleFileInputChange} accept="image/*" multiple className="hidden" />
-                          {isUploading ? (
-                            <div className="flex items-center gap-2 text-blue-500 py-1">
-                              <Loader2 size={16} className="animate-spin" />
-                              <span className="text-xs font-medium">Optimizing chart (WebP)...</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 text-xs text-text-muted">
-                              <UploadCloud size={16} className="text-blue-500" />
-                              <span>Drop chart image here or click to browse</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {uploadError && <p className="text-xs text-rose-500">{uploadError}</p>}
-                        {error && <p className="text-xs text-rose-500">{error}</p>}
-                      </div>
-                    </div>
+                {/* Single destructive action per design.md §5 */}
+                {editingIdea && onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full h-11 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  >
+                    <Trash2 size={16} />
+                    <span>Delete Idea</span>
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="idea-form-mode"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-5"
+            >
+              {/* Form Two-Column Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                {/* Row 1: Asset / Instrument (Left) + Direction Bias (Right) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between h-5">
+                    <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
+                      Asset / Instrument <span className="text-rose-500">*</span>
+                    </label>
                   </div>
+                  <TickerSelect value={symbol} onChange={(sym) => setSymbol(sym)} />
+                </div>
 
-                  <div className="px-4 py-3 md:px-8 md:py-5 border-t border-border-card flex items-center justify-between gap-2 md:gap-3 shrink-0 w-full max-w-full overflow-hidden">
-                    <div>
-                      {editingIdea && onDelete && (
-                        <button
-                          type="button"
-                          disabled={isDeleting}
-                          onClick={handleDelete}
-                          title="Delete Idea"
-                          aria-label="Delete Idea"
-                          className="w-11 h-11 md:h-10 md:w-auto md:px-4 flex items-center justify-center bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-[18px] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                        >
-                          {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={16} />}
-                          <span className="hidden md:inline ml-1.5 text-xs font-semibold">Delete</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => editingIdea ? setIsEditing(false) : onClose()}
-                        className="h-11 md:h-10 px-4 md:px-5 rounded-[18px] bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer shrink-0"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSaving || isUploading || !symbol}
-                        className="h-11 md:h-10 px-4 md:px-5 flex-1 md:flex-initial rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 truncate"
-                      >
-                        {isSaving && <Loader2 size={14} className="animate-spin shrink-0" />}
-                        <span className="truncate">{editingIdea ? 'Save Changes' : 'Create Idea'}</span>
-                      </button>
-                    </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between h-5">
+                    <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
+                      Direction Bias
+                    </label>
                   </div>
-                </form>
+                  <DirectionToggle
+                    value={direction}
+                    onChange={(val) => setDirection(val as 'LONG' | 'SHORT')}
+                    namespace="idea-modal"
+                    variant="idea"
+                  />
+                </div>
+
+                {/* 2 Columns: Trade Rationale & Key Triggers */}
+                <div className="md:col-span-2 space-y-2">
+                  <div className="flex items-center justify-between h-5">
+                    <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
+                      Trade Rationale & Key Triggers
+                    </label>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Session bias, target liquidity pool, reaction level..."
+                    className="w-full bg-card md:bg-canvas border border-border-card rounded-[18px] p-4 text-xs text-text-main placeholder:text-text-muted/60 outline-none focus:border-blue-500 transition-colors resize-none"
+                  />
+                </div>
+
+                {/* 2 Columns: Chart Snapshots */}
+                <div className="md:col-span-2">
+                  <ScreenshotsSection
+                    screenshots={screenshots}
+                    isEditing={true}
+                    isUploading={isUploading}
+                    uploadError={uploadError}
+                    isDragging={isDragging}
+                    fileInputRef={fileInputRef}
+                    onFileInputChange={handleFileInputChange}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onRemoveScreenshot={handleRemoveScreenshot}
+                    onViewScreenshot={(idx) => setViewerIndex(idx)}
+                    title="Chart Snapshots"
+                  />
+                </div>
+              </div>
+
+              {error && <p className="text-xs text-rose-500">{error}</p>}
+
+              {/* Mobile-only Destructive Action in Edit Mode */}
+              {editingIdea && onDelete && (
+                <div className="pt-2 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full h-11 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  >
+                    <Trash2 size={16} />
+                    <span>Delete Idea</span>
+                  </button>
+                </div>
               )}
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </TradeModalShell>
 
+      {/* Reusable Image Viewer */}
       <ImageViewerModal
         isOpen={viewerIndex !== null}
         images={screenshots}
         initialIndex={viewerIndex || 0}
         title={symbol ? `${symbol} - Idea Chart` : 'Idea Chart'}
         onClose={() => setViewerIndex(null)}
+      />
+
+      {/* Confirmation Dialog for Deletion per design.md §5 */}
+      <ConfirmDeleteDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Idea"
+        description="Are you sure you want to delete this watchlist idea? All data and charts linked to this idea will be permanently removed."
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
       />
     </>
   );
