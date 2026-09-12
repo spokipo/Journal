@@ -214,7 +214,7 @@ export function Select({
                       onClick={() => toggleCategory(optVal)}
                       className="w-full h-11 md:h-8 px-2 rounded-[14px] flex items-center justify-between text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas/60 transition-colors cursor-pointer select-none"
                     >
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <ChevronDown
                           size={12}
                           className={cn(
@@ -228,7 +228,7 @@ export function Select({
                       </div>
 
                       {selectedChildrenCount > 0 && (
-                        <span className="h-4 min-w-4 px-1 rounded-full bg-blue-500/15 text-blue-500 text-[0.625rem] font-mono font-bold flex items-center justify-center">
+                        <span className="h-4 min-w-4 px-1 rounded-full bg-blue-500/15 text-blue-500 text-[0.6875rem] font-mono font-bold flex items-center justify-center">
                           {selectedChildrenCount}
                         </span>
                       )}

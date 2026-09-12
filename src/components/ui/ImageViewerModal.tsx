@@ -92,7 +92,7 @@ export function ImageViewerModal({
                 </span>
               )}
               {allImages.length > 1 && (
-                <span className="text-white/90 text-xs font-mono font-medium bg-black/50 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
+                <span className="text-white/90 text-xs font-mono font-medium bg-black/50 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
                   <ImageIcon size={12} />
                   <span>
                     {currentIndex + 1} / {allImages.length}

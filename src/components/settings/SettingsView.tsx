@@ -573,7 +573,7 @@ export function SettingsView() {
         {/* Desktop Page Header */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <h1 className="text-2xl sm:text-3xl font-bold text-text-main tracking-tight">
                 Settings
               </h1>
@@ -687,7 +687,7 @@ export function SettingsView() {
                       onClick={() => handleSelectSection(sec.id)}
                       className="w-full min-h-11 flex items-center justify-between p-3.5 sm:p-4 rounded-[18px] bg-card border border-border-card hover:bg-canvas active:scale-[0.99] transition-all text-left group select-none cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-[14px] bg-canvas border border-border-card flex items-center justify-center text-text-muted group-hover:text-text-main shrink-0">
                           <SecIcon size={18} />
                         </div>
@@ -719,36 +719,38 @@ export function SettingsView() {
               transition={transitionConfig}
               className="w-full space-y-4"
             >
-              {/* TOP BAR: Back Button (44x44px) + Centered Title + Action */}
-              <div className="flex items-center justify-between gap-2.5 w-full">
-                <button
-                  type="button"
-                  onClick={handleBackToList}
-                  aria-label="Back to settings list"
-                  className="w-11 h-11 min-w-11 min-h-11 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-main hover:bg-card active:scale-95 shadow-xs transition-all cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  <ChevronLeft size={20} />
-                </button>
+              {/* TOP BAR: Back Button (44x44px) + Centered Title + Action (§3 D frosted glass standard) */}
+              <div className="sticky -top-4 z-20 -mx-4 px-4 bg-canvas/80 backdrop-blur-xl shrink-0 pt-[env(safe-area-inset-top)]">
+                <div className="h-16 flex items-center justify-between relative">
+                  <button
+                    type="button"
+                    onClick={handleBackToList}
+                    aria-label="Back to settings list"
+                    className="w-11 h-11 min-w-11 min-h-11 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-main hover:bg-card active:scale-95 shadow-xs transition-all cursor-pointer shrink-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
 
-                <div className="flex-1 min-w-0 text-center px-1">
-                  <h2 className="text-base font-semibold text-text-main truncate text-center">
-                    {activeSection.title}
-                  </h2>
-                </div>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-20">
+                    <h2 className="text-base font-semibold text-text-main truncate text-center pointer-events-auto">
+                      {activeSection.title}
+                    </h2>
+                  </div>
 
-                <div className="min-w-11 min-h-11 flex items-center justify-end shrink-0">
-                  {activeSection.id === 'accounts' ? (
-                    <button
-                      type="button"
-                      onClick={handleOpenAddAccount}
-                      aria-label="Add account"
-                      className="w-11 h-11 rounded-full bg-blue-500 border border-blue-500 text-white flex items-center justify-center active:scale-95 shadow-xs transition-all cursor-pointer shrink-0 hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    >
-                      <Plus size={18} />
-                    </button>
-                  ) : (
-                    <div className="w-11 h-11" aria-hidden="true" />
-                  )}
+                  <div className="min-w-11 min-h-11 flex items-center justify-end shrink-0 z-10">
+                    {activeSection.id === 'accounts' ? (
+                      <button
+                        type="button"
+                        onClick={handleOpenAddAccount}
+                        aria-label="Add account"
+                        className="w-11 h-11 rounded-full bg-blue-500 border border-blue-500 text-white flex items-center justify-center active:scale-95 shadow-xs transition-all cursor-pointer shrink-0 hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      >
+                        <Plus size={18} />
+                      </button>
+                    ) : (
+                      <div className="w-11 h-11" aria-hidden="true" />
+                    )}
+                  </div>
                 </div>
               </div>
 

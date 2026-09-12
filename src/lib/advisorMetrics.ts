@@ -229,60 +229,13 @@ export function computeAdvisorMetrics(
   };
 }
 
+import { getTodayMacroEvents as getLiveTodayMacroEvents, type TodayMacroEvent } from './economicCalendar';
+
 /**
- * Returns today's economic calendar releases.
+ * Returns today's real economic calendar releases from live feed.
  */
-export function getTodayMacroEvents(): MacroEvent[] {
-  return [
-    {
-      currency: 'USD',
-      time: '13:30 UTC',
-      title: 'Core CPI (MoM & YoY)',
-      forecast: '0.3%',
-      actual: '0.3%',
-      impact: 'HIGH',
-    },
-    {
-      currency: 'USD',
-      time: '13:30 UTC',
-      title: 'Initial Jobless Claims',
-      forecast: '225K',
-      actual: '228K',
-      impact: 'MED',
-    },
-    {
-      currency: 'EUR',
-      time: '14:15 UTC',
-      title: 'ECB Interest Rate Decision',
-      forecast: '3.75%',
-      actual: '3.75%',
-      impact: 'HIGH',
-    },
-    {
-      currency: 'USD',
-      time: '19:00 UTC',
-      title: 'FOMC Meeting Minutes',
-      forecast: '—',
-      actual: 'Pending',
-      impact: 'HIGH',
-    },
-    {
-      currency: 'JPY',
-      time: '04:00 UTC',
-      title: 'BoJ Policy Rate Decision',
-      forecast: '0.25%',
-      actual: '0.25%',
-      impact: 'HIGH',
-    },
-    {
-      currency: 'GBP',
-      time: '11:00 UTC',
-      title: 'BoE Official Bank Rate',
-      forecast: '5.00%',
-      actual: '5.00%',
-      impact: 'HIGH',
-    },
-  ];
+export async function getTodayMacroEvents(): Promise<TodayMacroEvent[]> {
+  return await getLiveTodayMacroEvents();
 }
 
 /**

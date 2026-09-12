@@ -105,11 +105,11 @@ function DesktopSortableItem({
       <button
         type="button"
         onClick={onSelect}
-        className="flex-1 flex items-center gap-2.5 py-3 pl-1 pr-2 text-left min-w-0 cursor-pointer"
+        className="flex-1 flex items-center gap-2 py-3 pl-1 pr-2 text-left min-w-0 cursor-pointer"
       >
         <div
           className={cn(
-            'w-8 h-8 rounded-[12px] flex items-center justify-center shrink-0 transition-colors',
+            'w-8 h-8 rounded-[14px] flex items-center justify-center shrink-0 transition-colors',
             isActive
               ? 'bg-blue-500/15 text-blue-500'
               : 'bg-canvas text-text-muted group-hover:text-text-main'
@@ -285,7 +285,7 @@ function MobileRow({
       <button
         type="button"
         onClick={onSelect}
-        className="flex-1 min-h-[64px] py-3.5 pl-4 pr-1 flex items-center gap-3.5 text-left min-w-0 cursor-pointer active:opacity-75 transition-opacity"
+        className="flex-1 min-h-[64px] py-3.5 pl-4 pr-1 flex items-center gap-3 text-left min-w-0 cursor-pointer active:opacity-75 transition-opacity"
       >
         <div className="w-10 h-10 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
           <IconComponent size={18} />
@@ -347,7 +347,7 @@ export function MobileSectionList({
   };
 
   return (
-    <div className="w-full flex flex-col space-y-2.5">
+    <div className="w-full flex flex-col space-y-3">
       {sections.map((section, idx) => (
         <MobileRow
           key={section.id}

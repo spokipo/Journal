@@ -311,7 +311,7 @@ export function StatsEquityChart({
                     {activeHover.symbol !== 'Start' && (
                       <span
                         className={cn(
-                          "px-1.5 py-0.2 rounded-full text-[0.625rem] font-bold font-mono",
+                          "px-1.5 py-0.5 rounded-full text-[0.6875rem] font-bold font-mono",
                           activeHover.outcome === 'TP' ? 'bg-emerald-500/10 text-emerald-500' :
                           activeHover.outcome === 'SL' ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-500'
                         )}

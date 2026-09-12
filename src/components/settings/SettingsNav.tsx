@@ -31,7 +31,7 @@ export function SettingsNav({
               type="button"
               onClick={() => onSelectSection(sec.id)}
               className={cn(
-                "group relative w-full flex items-center gap-2.5 px-3.5 py-3 rounded-[18px] transition-colors select-none text-left cursor-pointer",
+                "group relative w-full flex items-center gap-2 px-3.5 py-3 rounded-[18px] transition-colors select-none text-left cursor-pointer",
                 isActive
                   ? "text-blue-500 font-medium"
                   : "hover:bg-canvas text-text-main"
@@ -46,7 +46,7 @@ export function SettingsNav({
               )}
               <div
                 className={cn(
-                  "relative z-10 w-8 h-8 rounded-[12px] flex items-center justify-center shrink-0 transition-colors",
+                  "relative z-10 w-8 h-8 rounded-[14px] flex items-center justify-center shrink-0 transition-colors",
                   isActive
                     ? "bg-blue-500/15 text-blue-500"
                     : "bg-canvas text-text-muted group-hover:text-text-main"

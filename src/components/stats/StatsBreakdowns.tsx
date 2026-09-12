@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Clock, 
+  Timer,
   Compass, 
   BookMarked, 
   AlertTriangle, 
@@ -16,10 +17,11 @@ interface StatsBreakdownsProps {
   metricMode: 'dual' | 'r' | 'amount';
 }
 
-type TabType = 'session' | 'setup' | 'mistake' | 'direction' | 'daily';
+type TabType = 'session' | 'timeframe' | 'setup' | 'mistake' | 'direction' | 'daily';
 
 const TABS: { id: TabType; value: TabType; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
   { id: 'session', value: 'session', label: 'By Session', icon: Clock },
+  { id: 'timeframe', value: 'timeframe', label: 'By Timeframe', icon: Timer },
   { id: 'setup', value: 'setup', label: 'By Setup', icon: BookMarked },
   { id: 'direction', value: 'direction', label: 'By Direction', icon: Compass },
   { id: 'mistake', value: 'mistake', label: 'Mistakes Cost', icon: AlertTriangle },
@@ -44,7 +46,7 @@ export function StatsBreakdowns({
     return (
       <div>
         {/* Mobile Card View (< md) per design.md §9 (no horizontal scroll) */}
-        <div className="space-y-2.5 md:hidden">
+        <div className="space-y-3 md:hidden">
           {items.map((item) => {
             const isNetPositive = item.netR > 0;
             const isNetNegative = item.netR < 0;
@@ -125,7 +127,7 @@ export function StatsBreakdowns({
                       {item.tradesCount} <span className="text-[0.6875rem]">({item.winCount}W / {item.lossCount}L)</span>
                     </td>
                     <td className="py-3 px-3 text-center font-mono tabular-nums">
-                      <div className="inline-flex items-center gap-1.5">
+                      <div className="inline-flex items-center gap-2">
                         <span className={item.winRate >= 50 ? "text-emerald-500 font-semibold" : "text-text-main"}>
                           {item.winRate}%
                         </span>
@@ -189,7 +191,7 @@ export function StatsBreakdowns({
           <span>Daily Result (R & $)</span>
         </div>
 
-        <div className="space-y-1.5 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
+        <div className="space-y-2 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
           {items.slice(-30).reverse().map((day) => {
             const isPos = day.netR > 0;
             const isNeg = day.netR < 0;
@@ -218,7 +220,7 @@ export function StatsBreakdowns({
                     <span className={cn("font-semibold block", isPos ? "text-emerald-500" : isNeg ? "text-rose-500" : "text-text-muted")}>
                       {isPos ? `+${day.netR.toFixed(2)}` : day.netR.toFixed(2)}R
                     </span>
-                    <span className="text-[0.625rem] text-text-muted block">
+                    <span className="text-[0.6875rem] text-text-muted block">
                       {day.netAmount !== null && day.netAmount !== undefined
                         ? `${day.netAmount >= 0 ? '+' : ''}$${day.netAmount.toFixed(2)}`
                         : '—'}
@@ -255,7 +257,7 @@ export function StatsBreakdowns({
         </div>
 
         {/* Desktop Tab Controls: Segmented Control (>= sm) */}
-        <div className="hidden sm:flex items-center gap-1 bg-canvas border border-border-card rounded-[16px] p-1">
+        <div className="hidden sm:flex items-center gap-1 bg-canvas border border-border-card rounded-full p-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -265,18 +267,18 @@ export function StatsBreakdowns({
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "relative h-8 px-2.5 text-xs font-medium rounded-[12px] transition-colors whitespace-nowrap select-none cursor-pointer flex items-center gap-1.5",
+                  "relative h-7 px-3 text-xs font-medium rounded-full transition-colors whitespace-nowrap select-none cursor-pointer flex items-center gap-2",
                   isActive ? "text-blue-500 font-semibold" : "text-text-muted hover:text-text-main"
                 )}
               >
                 {isActive && (
                   <motion.div
                     layoutId="stats-breakdown-tab-pill"
-                    className="absolute inset-0 bg-card rounded-[12px] shadow-sm"
+                    className="absolute inset-0 bg-card rounded-full shadow-xs"
                     transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                   />
                 )}
-                <span className="relative z-10 flex items-center gap-1.5">
+                <span className="relative z-10 flex items-center gap-2">
                   <Icon size={13} />
                   <span>{tab.label}</span>
                 </span>
@@ -289,6 +291,7 @@ export function StatsBreakdowns({
       {/* Tab Content */}
       <div>
         {activeTab === 'session' && renderBreakdownTable(stats.bySession)}
+        {activeTab === 'timeframe' && renderBreakdownTable(stats.byTimeframe)}
         {activeTab === 'setup' && renderBreakdownTable(stats.bySetup)}
         {activeTab === 'direction' && renderBreakdownTable(stats.byDirection)}
         {activeTab === 'mistake' && renderBreakdownTable(stats.byMistake)}

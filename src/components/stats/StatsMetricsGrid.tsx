@@ -53,7 +53,7 @@ export function StatsMetricsGrid({
           <span className="text-xs font-semibold uppercase tracking-wider">Net Result</span>
           <div
             className={cn(
-              "w-8 h-8 rounded-[12px] flex items-center justify-center",
+              "w-8 h-8 rounded-[14px] flex items-center justify-center",
               isPositiveR ? "bg-emerald-500/10 text-emerald-500" :
               isNegativeR ? "bg-rose-500/10 text-rose-500" : "bg-canvas text-text-muted"
             )}
@@ -114,7 +114,7 @@ export function StatsMetricsGrid({
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Win Rate</span>
-          <div className="w-8 h-8 rounded-[12px] bg-blue-500/10 text-blue-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center">
             <Target size={16} />
           </div>
         </div>
@@ -123,7 +123,7 @@ export function StatsMetricsGrid({
           <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-text-main tracking-tight">
             {stats.winRate}%
           </div>
-          <div className="text-[0.6875rem] text-text-muted font-mono mt-1 flex items-center gap-1.5">
+          <div className="text-[0.6875rem] text-text-muted font-mono mt-1 flex items-center gap-2">
             <span className="text-emerald-500 font-semibold">{stats.winCount}W</span>
             <span>•</span>
             <span className="text-rose-500 font-semibold">{stats.lossCount}L</span>
@@ -158,7 +158,7 @@ export function StatsMetricsGrid({
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Profit Factor</span>
-          <div className="w-8 h-8 rounded-[12px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-[14px] bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
             <Scale size={16} />
           </div>
         </div>
@@ -190,7 +190,7 @@ export function StatsMetricsGrid({
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Expectancy</span>
-          <div className="w-8 h-8 rounded-[12px] bg-blue-500/10 text-blue-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center">
             <Activity size={16} />
           </div>
         </div>
@@ -220,7 +220,7 @@ export function StatsMetricsGrid({
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Avg Win / Loss</span>
-          <div className="w-8 h-8 rounded-[12px] bg-yellow-500/10 text-yellow-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-[14px] bg-yellow-500/10 text-yellow-500 flex items-center justify-center">
             <Award size={16} />
           </div>
         </div>
@@ -250,7 +250,7 @@ export function StatsMetricsGrid({
       <div className="bg-card border border-border-card rounded-[26px] p-5 flex flex-col justify-between shadow-sm">
         <div className="flex items-center justify-between text-text-muted mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider">Max Drawdown</span>
-          <div className="w-8 h-8 rounded-[12px] bg-rose-500/10 text-rose-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-[14px] bg-rose-500/10 text-rose-500 flex items-center justify-center">
             <ShieldAlert size={16} />
           </div>
         </div>

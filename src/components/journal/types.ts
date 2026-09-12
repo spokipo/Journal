@@ -18,6 +18,7 @@ export interface TradeRecord {
   mistake_ids: string[];
   account_id?: string | null;
   idea_id?: string | null;
+  timeframe?: string | null;
   notes: string | null;
   screenshots: string[];
   trade_date: string;

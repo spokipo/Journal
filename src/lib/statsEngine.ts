@@ -30,6 +30,7 @@ export interface RawTrade {
   idea_id?: string | null;
   notes?: string | null;
   screenshots?: string[];
+  timeframe?: string | null;
   trade_date: string;
   created_at?: string;
 }
@@ -61,6 +62,7 @@ export interface FilterState {
   customStartDate?: string; // YYYY-MM-DD
   customEndDate?: string;   // YYYY-MM-DD
   accountId: string;        // 'all' or specific account id
+  timeframe?: string;       // 'all' or specific timeframe like '5m'
   searchQuery?: string;
 }
 
@@ -136,6 +138,7 @@ export interface StatsSummary {
   equityCurve: EquityPoint[];
   dailyPnl: DailyPnlItem[];
   bySession: BreakdownMetric[];
+  byTimeframe: BreakdownMetric[];
   byDirection: BreakdownMetric[];
   bySetup: BreakdownMetric[];
   byMistake: BreakdownMetric[];
@@ -370,6 +373,11 @@ export function filterTrades(trades: EnrichedTrade[], filters: FilterState): Enr
       if (accId !== String(filters.accountId)) return false;
     }
 
+    // Timeframe filter ('all' includes all; specific timeframe filters to that timeframe)
+    if (filters.timeframe && filters.timeframe !== 'all') {
+      if ((trade.timeframe || '') !== filters.timeframe) return false;
+    }
+
     // Search query filter (symbol or notes)
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase().trim();
@@ -467,6 +475,7 @@ export function calculateStatistics(
       }] : [],
       dailyPnl: [],
       bySession: [],
+      byTimeframe: [],
       byDirection: [],
       bySetup: [],
       byMistake: [],
@@ -682,6 +691,13 @@ export function calculateStatistics(
     },
   ]);
 
+  const byTimeframe = buildBreakdowns((t) => [
+    {
+      key: t.timeframe || 'none',
+      label: t.timeframe ? t.timeframe : 'No Timeframe',
+    },
+  ]);
+
   const byDirection = buildBreakdowns((t) => [
     {
       key: t.direction,
@@ -740,6 +756,7 @@ export function calculateStatistics(
     equityCurve,
     dailyPnl,
     bySession,
+    byTimeframe,
     byDirection,
     bySetup,
     byMistake,

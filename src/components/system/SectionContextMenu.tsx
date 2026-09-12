@@ -172,7 +172,7 @@ export function SectionContextMenu({
                         onMoveUp();
                       }}
                       className={cn(
-                        'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
+                        'w-full px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
                         isCompact ? 'h-8' : 'min-h-11 h-11'
                       )}
                     >
@@ -192,7 +192,7 @@ export function SectionContextMenu({
                         onMoveDown();
                       }}
                       className={cn(
-                        'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
+                        'w-full px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-text-main hover:bg-canvas disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer text-left',
                         isCompact ? 'h-8' : 'min-h-11 h-11'
                       )}
                     >
@@ -210,7 +210,7 @@ export function SectionContextMenu({
                       onEdit();
                     }}
                     className={cn(
-                      'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas transition-colors cursor-pointer text-left',
+                      'w-full px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-text-main hover:bg-canvas transition-colors cursor-pointer text-left',
                       isCompact ? 'h-8' : 'min-h-11 h-11'
                     )}
                   >
@@ -230,7 +230,7 @@ export function SectionContextMenu({
                       onDelete();
                     }}
                     className={cn(
-                      'w-full px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-rose-500 hover:bg-rose-500/10 active:bg-rose-500/20 transition-colors cursor-pointer text-left',
+                      'w-full px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-rose-500 hover:bg-rose-500/10 active:bg-rose-500/20 transition-colors cursor-pointer text-left',
                       isCompact ? 'h-8' : 'min-h-11 h-11'
                     )}
                   >

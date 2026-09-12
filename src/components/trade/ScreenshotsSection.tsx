@@ -41,7 +41,7 @@ export function ScreenshotsSection({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between h-5">
-        <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+        <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-2">
           <ImageIcon size={14} className="text-text-muted" />
           <span>{title} ({screenshots.length})</span>
         </label>

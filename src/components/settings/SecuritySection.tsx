@@ -74,7 +74,7 @@ export function SecuritySection() {
         </div>
 
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label
               htmlFor="settings-new-pass"
               className="text-xs font-semibold uppercase tracking-wider text-text-muted"
@@ -93,7 +93,7 @@ export function SecuritySection() {
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label
               htmlFor="settings-confirm-pass"
               className="text-xs font-semibold uppercase tracking-wider text-text-muted"

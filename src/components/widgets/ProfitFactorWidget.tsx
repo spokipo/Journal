@@ -13,7 +13,7 @@ export function ProfitFactorWidget({ size, stats }: WidgetProps) {
     return (
       <WidgetCard size={size} className="justify-between text-left">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+          <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
             <Award size={14} className={isHealthy ? "text-emerald-500" : "text-amber-500"} />
             <span>Profit Factor</span>
           </div>

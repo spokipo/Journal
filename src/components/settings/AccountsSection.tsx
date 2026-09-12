@@ -38,7 +38,7 @@ export function AccountsSection({
   return (
     <div className="space-y-6">
       {/* Metric Cards (L2 Compact) with Item-stagger per design.md §3.1 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -154,7 +154,7 @@ export function AccountsSection({
               >
                 {/* Header (2:1 Widget Style): Icon, Name, Scope Badge & Actions */}
                 <div className="flex items-center justify-between gap-3 w-full pb-3.5 border-b border-border-card/60">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div
                       className={cn(
                         "w-9 h-9 rounded-[14px] flex items-center justify-center shrink-0",
@@ -192,7 +192,7 @@ export function AccountsSection({
                   </div>
 
                   {/* Actions: Default Star Toggle + Context Menu */}
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       title={acc.is_default ? "Default account (click to unset)" : "Set as default account"}
@@ -226,7 +226,7 @@ export function AccountsSection({
                     <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
                       Current Balance
                     </span>
-                    <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-text-main mt-0.5 flex items-baseline gap-1.5 truncate">
+                    <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-text-main mt-0.5 flex items-baseline gap-2 truncate">
                       <span>
                         ${currentBal.toLocaleString('en-US', {
                           minimumFractionDigits: 2,

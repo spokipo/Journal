@@ -67,7 +67,7 @@ export const WIDGET_REGISTRY = {
     component: SessionTrackerWidget, 
     name: 'Session Clock', 
     description: 'Active market session (London, NY, Asia, Overlap)',
-    supportedSizes: ['small', 'medium'] as WidgetSize[] 
+    supportedSizes: ['small', 'medium', 'large'] as WidgetSize[] 
   },
   economicNews: {
     component: EconomicNewsWidget,

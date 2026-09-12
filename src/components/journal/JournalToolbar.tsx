@@ -100,7 +100,7 @@ export function JournalToolbar({
             type="button"
             onClick={() => onTabChange('trades')}
             className={cn(
-              "relative z-10 flex-1 md:flex-none h-9 md:h-7 px-4 rounded-full text-xs font-medium transition-colors cursor-pointer select-none flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+              "relative z-10 flex-1 md:flex-none h-9 md:h-7 px-4 rounded-full text-xs font-medium transition-colors cursor-pointer select-none flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
               activeTab === 'trades' ? "text-white" : "text-text-muted hover:text-text-main"
             )}
           >
@@ -119,7 +119,7 @@ export function JournalToolbar({
             type="button"
             onClick={() => onTabChange('ideas')}
             className={cn(
-              "relative z-10 flex-1 md:flex-none h-9 md:h-7 px-4 rounded-full text-xs font-medium transition-colors cursor-pointer select-none flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
+              "relative z-10 flex-1 md:flex-none h-9 md:h-7 px-4 rounded-full text-xs font-medium transition-colors cursor-pointer select-none flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
               activeTab === 'ideas' ? "text-white" : "text-text-muted hover:text-text-main"
             )}
           >
@@ -296,7 +296,7 @@ export function JournalToolbar({
           >
             <SlidersHorizontal size={18} />
             {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[0.625rem] font-bold flex items-center justify-center shadow-xs">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[0.6875rem] font-bold flex items-center justify-center shadow-xs">
                 {activeFilterCount}
               </span>
             )}
@@ -306,15 +306,16 @@ export function JournalToolbar({
           <AnimatePresence>
             {isMobileFilterOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                ref={mobileFilterRef}
+                initial={{ opacity: 0, y: 4, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] bg-card border border-border-card rounded-[18px] p-2.5 shadow-2xl z-50 flex flex-col gap-2.5"
+                className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] bg-card border border-border-card rounded-[18px] p-3 shadow-2xl z-50 flex flex-col gap-3"
               >
                 {activeTab === 'trades' ? (
                   <>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2">
                       <label className="text-[0.6875rem] font-semibold text-text-muted uppercase px-1">
                         Filter
                       </label>
@@ -329,7 +330,7 @@ export function JournalToolbar({
                       />
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2">
                       <label className="text-[0.6875rem] font-semibold text-text-muted uppercase px-1">
                         Sort By
                       </label>
@@ -343,7 +344,7 @@ export function JournalToolbar({
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-2">
                     <label className="text-[0.6875rem] font-semibold text-text-muted uppercase px-1">
                       Status
                     </label>
@@ -368,7 +369,7 @@ export function JournalToolbar({
                         resetFilters();
                         setIsMobileFilterOpen(false);
                       }}
-                      className="min-h-11 px-2 text-xs text-rose-500 hover:underline flex items-center gap-1 cursor-pointer font-medium active:scale-95 transition-transform"
+                      className="h-8 px-3 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
                     >
                       <RotateCcw size={12} />
                       <span>Reset all</span>
@@ -383,7 +384,7 @@ export function JournalToolbar({
 
       {/* Active Filter Chips */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {selectedAccounts.map((id) => (
             <div
               key={id}

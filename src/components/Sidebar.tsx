@@ -210,7 +210,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                   <div className="font-semibold text-text-main text-sm truncate">
                     {displayName}
                   </div>
-                  <div className="text-xs text-text-muted truncate flex items-center gap-1.5 mt-0.5">
+                  <div className="text-xs text-text-muted truncate flex items-center gap-2 mt-0.5">
                     <span className={cn(
                       "w-1.5 h-1.5 rounded-full shrink-0",
                       user ? "bg-emerald-500" : "bg-amber-500"
@@ -345,7 +345,7 @@ export function Sidebar({ activeTab }: { activeTab?: string }) {
                 type="button"
                 onClick={() => setShowAddMenu(!showAddMenu)}
                 className={cn(
-                  "w-full h-11 flex items-center bg-blue-500 text-white rounded-full hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 relative z-30 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
+                  "w-full h-11 flex items-center bg-blue-500 border border-blue-500 text-white rounded-full hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 relative z-30 group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
                   isCollapsed ? "justify-center px-0" : "px-2.5"
                 )}
                 title={isCollapsed ? "New Entry" : undefined}

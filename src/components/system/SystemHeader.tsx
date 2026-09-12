@@ -27,7 +27,7 @@ export function SystemHeader({
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl sm:text-3xl font-bold text-text-main tracking-tight">
             Trading System
           </h1>
@@ -41,14 +41,14 @@ export function SystemHeader({
       </div>
 
       {activeSection && (
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {isEditMode ? (
             <>
               <button
                 type="button"
                 onClick={onCancelEdit}
                 disabled={isSaving}
-                className="h-10 px-5 rounded-full bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="h-10 px-5 rounded-full bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <X size={14} />
                 <span>Cancel</span>
@@ -57,7 +57,7 @@ export function SystemHeader({
                 type="button"
                 onClick={onSave}
                 disabled={isSaving}
-                className="h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer flex items-center gap-1.5 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer flex items-center gap-2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 {isSaving ? (
                   <>

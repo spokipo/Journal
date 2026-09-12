@@ -67,7 +67,7 @@ export function StatsTradesTable({
         </div>
 
         {/* Desktop Quick Sorting shortcuts */}
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-text-muted font-medium">
+        <div className="hidden sm:flex items-center gap-2 text-xs text-text-muted font-medium">
           <span>Sort:</span>
           <button
             type="button"
@@ -110,7 +110,7 @@ export function StatsTradesTable({
       ) : (
         <div>
           {/* Mobile Card List (< md) per design.md §9 (no horizontal scroll escape hatch) */}
-          <div className="space-y-2.5 md:hidden">
+          <div className="space-y-3 md:hidden">
             {paginatedTrades.map((t) => {
               const isLong = t.direction === 'LONG';
               const isWin = t.outcome === 'TP';
@@ -125,7 +125,7 @@ export function StatsTradesTable({
                 <div
                   key={t.id}
                   onClick={() => onSelectTrade(t)}
-                  className="p-3.5 rounded-[18px] bg-canvas/40 hover:bg-canvas border border-border-card transition-colors cursor-pointer space-y-2.5 active:scale-[0.99]"
+                  className="p-3.5 rounded-[18px] bg-canvas/40 hover:bg-canvas border border-border-card transition-colors cursor-pointer space-y-3 active:scale-[0.99]"
                 >
                   {/* Top Row: Date, Symbol, Direction, Outcome */}
                   <div className="flex items-center justify-between">
@@ -133,12 +133,17 @@ export function StatsTradesTable({
                       <span className="font-bold text-text-main text-xs">{t.symbol}</span>
                       <span
                         className={cn(
-                          "px-1.5 py-0.5 rounded-full text-[0.625rem] font-bold uppercase",
+                          "px-1.5 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase",
                           isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
                         )}
                       >
                         {t.direction}
                       </span>
+                      {t.timeframe && (
+                        <span className="px-1.5 py-0.5 rounded-[8px] text-[0.6875rem] font-mono font-medium bg-canvas text-text-muted border border-border-card">
+                          {t.timeframe}
+                        </span>
+                      )}
                       <span className="font-mono text-text-muted text-[0.6875rem]">
                         {formattedDate}
                       </span>
@@ -146,7 +151,7 @@ export function StatsTradesTable({
 
                     <span
                       className={cn(
-                        "px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase font-mono",
+                        "px-2 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase font-mono",
                         isWin ? "bg-emerald-500/10 text-emerald-500" :
                         isLoss ? "bg-rose-500/10 text-rose-500" : "bg-amber-500/10 text-amber-500"
                       )}
@@ -243,16 +248,21 @@ export function StatsTradesTable({
 
                       {/* Symbol & Direction */}
                       <td className="py-3 px-3">
-                        <div className="flex items-center gap-1.5 font-semibold text-text-main">
+                        <div className="flex items-center gap-2 font-semibold text-text-main">
                           <span>{t.symbol}</span>
                           <span
                             className={cn(
-                              "px-1.5 py-0.2 rounded-full text-[0.625rem] font-bold uppercase",
+                              "px-1.5 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase",
                               isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
                             )}
                           >
                             {t.direction}
                           </span>
+                          {t.timeframe && (
+                            <span className="px-1.5 py-0.5 rounded-[8px] text-[0.6875rem] font-mono font-medium bg-canvas text-text-muted border border-border-card">
+                              {t.timeframe}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -273,7 +283,7 @@ export function StatsTradesTable({
                       {/* Risk % & Dollar */}
                       <td className="py-3 px-3 text-right font-mono tabular-nums text-text-muted">
                         <span>{t.risk_percent}%</span>
-                        <span className="text-[0.625rem] block text-text-muted/80">
+                        <span className="text-[0.6875rem] block text-text-muted/80">
                           {t.risk_amount !== null && t.risk_amount !== undefined ? `$${t.risk_amount.toFixed(0)}` : '—'}
                         </span>
                       </td>
@@ -282,7 +292,7 @@ export function StatsTradesTable({
                       <td className="py-3 px-3 text-center">
                         <span
                           className={cn(
-                            "px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase font-mono",
+                            "px-2 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase font-mono",
                             isWin ? "bg-emerald-500/10 text-emerald-500" :
                             isLoss ? "bg-rose-500/10 text-rose-500" : "bg-amber-500/10 text-amber-500"
                           )}
@@ -317,7 +327,7 @@ export function StatsTradesTable({
 
                       {/* Action */}
                       <td className="py-3 px-3 text-center">
-                        <span className="w-7 h-7 rounded-[8px] bg-canvas flex items-center justify-center text-text-muted group-hover:text-blue-500 transition-colors mx-auto">
+                        <span className="w-7 h-7 rounded-full bg-canvas border border-border-card flex items-center justify-center text-text-muted group-hover:text-blue-500 transition-colors mx-auto">
                           <ExternalLink size={13} />
                         </span>
                       </td>
@@ -337,13 +347,13 @@ export function StatsTradesTable({
             Page {currentPage} of {totalPages}
           </span>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               aria-label="Previous Page"
-              className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 h-11 w-11 sm:h-8 sm:w-8 rounded-[14px] sm:rounded-[12px] bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas disabled:opacity-40 disabled:pointer-events-none transition-colors"
+              className="w-11 h-11 sm:w-9 sm:h-9 rounded-full bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <ChevronLeft size={16} />
             </button>
@@ -352,7 +362,7 @@ export function StatsTradesTable({
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               aria-label="Next Page"
-              className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 h-11 w-11 sm:h-8 sm:w-8 rounded-[14px] sm:rounded-[12px] bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas disabled:opacity-40 disabled:pointer-events-none transition-colors"
+              className="w-11 h-11 sm:w-9 sm:h-9 rounded-full bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <ChevronRight size={16} />
             </button>

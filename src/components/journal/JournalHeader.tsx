@@ -22,7 +22,7 @@ export function JournalHeader({
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
       {/* Page Header (§3) */}
       <div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-main">
             Trading Journal
           </h1>
@@ -48,7 +48,7 @@ export function JournalHeader({
         <button
           type="button"
           onClick={onNewIdea}
-          className="h-11 md:h-10 px-4 rounded-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 text-sm font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          className="h-11 md:h-10 px-4 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
         >
           <Lightbulb size={14} />
           <span>New Idea</span>
@@ -57,7 +57,7 @@ export function JournalHeader({
         <button
           type="button"
           onClick={onLogTrade}
-          className="h-11 md:h-10 px-4.5 rounded-full bg-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-600 transition-all cursor-pointer shadow-sm shadow-blue-500/20 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="h-11 md:h-10 px-4.5 rounded-full bg-blue-500 border border-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-600 transition-all cursor-pointer shadow-sm shadow-blue-500/20 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <Plus size={14} />
           <span>Log Trade</span>

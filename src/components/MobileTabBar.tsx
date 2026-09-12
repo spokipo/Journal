@@ -428,8 +428,8 @@ export function MobileTabBar({ activeTab }: { activeTab?: string }) {
               className={cn(
                 "min-w-11 min-h-11 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 cursor-pointer",
                 showAddMenu 
-                  ? "bg-rose-500 text-white shadow-rose-500/20" 
-                  : "bg-blue-500 text-white shadow-blue-500/20"
+                  ? "bg-rose-500 border border-rose-500 text-white shadow-rose-500/20" 
+                  : "bg-blue-500 border border-blue-500 text-white shadow-blue-500/20"
               )}
               aria-label="Add entry"
               aria-expanded={showAddMenu}

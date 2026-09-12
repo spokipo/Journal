@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { SlidersHorizontal, Globe, X, RotateCcw } from 'lucide-react';
+import { SlidersHorizontal, Globe, X, RotateCcw, Loader2 } from 'lucide-react';
 import type { WidgetProps } from './types';
 import { WidgetCard } from './common/WidgetCard';
 
@@ -19,117 +19,18 @@ interface EconomicEventItem {
 const ALL_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] as const;
 const ALL_IMPACTS = ['HIGH', 'MED', 'LOW'] as const;
 
-function generateWeeklyCalendar(): EconomicEventItem[] {
-  const now = new Date();
-  const todayMorning = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
-  const dayMs = 86400000;
-  const hourMs = 3600000;
-
-  return [
-    {
-      id: 'ev_cpi',
-      currency: 'USD',
-      title: 'Core CPI (MoM & YoY)',
-      impact: 'HIGH',
-      timestamp: todayMorning + 13.5 * hourMs,
-      forecast: '0.3%',
-      previous: '0.3%',
-    },
-    {
-      id: 'ev_claims',
-      currency: 'USD',
-      title: 'Initial Jobless Claims',
-      impact: 'MED',
-      timestamp: todayMorning + 13.5 * hourMs,
-      forecast: '225K',
-      previous: '228K',
-    },
-    {
-      id: 'ev_ecb',
-      currency: 'EUR',
-      title: 'ECB Interest Rate Decision',
-      impact: 'HIGH',
-      timestamp: todayMorning + 14.25 * hourMs,
-      forecast: '3.75%',
-      previous: '4.00%',
-    },
-    {
-      id: 'ev_fomc',
-      currency: 'USD',
-      title: 'FOMC Meeting Minutes',
-      impact: 'HIGH',
-      timestamp: todayMorning + 19 * hourMs,
-      forecast: '—',
-      previous: '—',
-    },
-    {
-      id: 'ev_boj',
-      currency: 'JPY',
-      title: 'BoJ Policy Rate Decision',
-      impact: 'HIGH',
-      timestamp: todayMorning + 4 * hourMs,
-      forecast: '0.25%',
-      previous: '0.25%',
-    },
-    {
-      id: 'ev_boe',
-      currency: 'GBP',
-      title: 'BoE Official Bank Rate',
-      impact: 'HIGH',
-      timestamp: todayMorning + dayMs + 12 * hourMs,
-      forecast: '5.00%',
-      previous: '5.00%',
-    },
-    {
-      id: 'ev_nfp',
-      currency: 'USD',
-      title: 'Non-Farm Employment Change',
-      impact: 'HIGH',
-      timestamp: todayMorning + dayMs + 13.5 * hourMs,
-      forecast: '165K',
-      previous: '114K',
-    },
-    {
-      id: 'ev_ur',
-      currency: 'USD',
-      title: 'Unemployment Rate',
-      impact: 'HIGH',
-      timestamp: todayMorning + dayMs + 13.5 * hourMs,
-      forecast: '4.3%',
-      previous: '4.3%',
-    },
-    {
-      id: 'ev_cad_emp',
-      currency: 'CAD',
-      title: 'Employment Change',
-      impact: 'HIGH',
-      timestamp: todayMorning + dayMs + 13.5 * hourMs,
-      forecast: '22.5K',
-      previous: '-2.8K',
-    },
-    {
-      id: 'ev_rba',
-      currency: 'AUD',
-      title: 'RBA Cash Rate Decision',
-      impact: 'HIGH',
-      timestamp: todayMorning + 2 * dayMs + 5.5 * hourMs,
-      forecast: '4.35%',
-      previous: '4.35%',
-    },
-    {
-      id: 'ev_snb',
-      currency: 'CHF',
-      title: 'SNB Policy Rate Decision',
-      impact: 'HIGH',
-      timestamp: todayMorning + 2 * dayMs + 8.5 * hourMs,
-      forecast: '1.25%',
-      previous: '1.25%',
-    },
-  ].sort((a, b) => a.timestamp - b.timestamp);
-}
-
 export function EconomicNewsWidget({ size }: WidgetProps) {
-  const [events] = useState<EconomicEventItem[]>(generateWeeklyCalendar);
+  const [events, setEvents] = useState<EconomicEventItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('dashboard_live_news_v1');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => events.length === 0);
   const [now, setNow] = useState<number>(Date.now());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -138,6 +39,35 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
   // Active filters
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([...ALL_CURRENCIES]);
   const [selectedImpacts, setSelectedImpacts] = useState<string[]>(['HIGH', 'MED']);
+
+  // Live weekly calendar loader
+  useEffect(() => {
+    let isMounted = true;
+    const loadEvents = async () => {
+      try {
+        const res = await fetch('/api/calendar');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (isMounted && Array.isArray(data?.events)) {
+          setEvents(data.events);
+          try {
+            localStorage.setItem('dashboard_live_news_v1', JSON.stringify(data.events));
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Failed to load real economic calendar:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    loadEvents();
+    const interval = setInterval(loadEvents, 10 * 60 * 1000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Load preferences from localStorage
   useEffect(() => {
@@ -172,30 +102,70 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Filter events
-  const filteredEvents = useMemo(() => {
+function ImpactDot({ impact, isImminent, className }: { impact: 'HIGH' | 'MED' | 'LOW'; isImminent?: boolean; className?: string }) {
+  const dotColor = impact === 'HIGH' 
+    ? 'bg-rose-500' 
+    : impact === 'MED' 
+    ? 'bg-amber-500' 
+    : 'bg-blue-400';
+
+  return (
+    <span className={cn("relative flex items-center justify-center shrink-0", className)}>
+      {isImminent && impact === 'HIGH' && (
+        <span className="absolute w-2.5 h-2.5 rounded-full bg-rose-500/40 animate-ping" />
+      )}
+      <span 
+        className={cn("w-2 h-2 rounded-full", dotColor)} 
+        title={`${impact === 'HIGH' ? 'High' : impact === 'MED' ? 'Medium' : 'Low'} Impact`}
+      />
+    </span>
+  );
+}
+
+  // Strictly today's events for all widget sizes
+  const filteredTodayEvents = useMemo(() => {
+    const todayDate = new Date(now);
+    const todayYear = todayDate.getFullYear();
+    const todayMonth = todayDate.getMonth();
+    const todayDay = todayDate.getDate();
+
     return events.filter(ev => {
+      const evDate = new Date(ev.timestamp);
+      const isToday = 
+        evDate.getFullYear() === todayYear &&
+        evDate.getMonth() === todayMonth &&
+        evDate.getDate() === todayDay;
+      if (!isToday) return false;
+
       if (selectedCurrencies.length > 0 && !selectedCurrencies.includes(ev.currency)) return false;
       if (selectedImpacts.length > 0 && !selectedImpacts.includes(ev.impact)) return false;
       return true;
     });
-  }, [events, selectedCurrencies, selectedImpacts]);
+  }, [events, now, selectedCurrencies, selectedImpacts]);
 
-  // Nearest future or recent event for small size
-  const nextEvent = useMemo(() => {
-    const upcoming = filteredEvents.filter(ev => ev.timestamp >= now - 1800000);
-    return upcoming[0] || filteredEvents[0] || null;
-  }, [filteredEvents, now]);
+  // Small size: Nearest event today
+  const nearestEvent = useMemo(() => {
+    if (filteredTodayEvents.length === 0) return null;
+    const upcoming = filteredTodayEvents.filter(ev => ev.timestamp >= now - 15 * 60 * 1000);
+    return upcoming[0] || filteredTodayEvents[filteredTodayEvents.length - 1];
+  }, [filteredTodayEvents, now]);
+
+  // Medium size: Nearest 2 events today
+  const mediumEvents = useMemo(() => {
+    if (filteredTodayEvents.length === 0) return [];
+    const upcoming = filteredTodayEvents.filter(ev => ev.timestamp >= now - 15 * 60 * 1000);
+    if (upcoming.length >= 2) return upcoming.slice(0, 2);
+    if (upcoming.length === 1) {
+      const passed = filteredTodayEvents.filter(ev => ev.timestamp < now - 15 * 60 * 1000);
+      return [...passed.slice(-1), ...upcoming];
+    }
+    return filteredTodayEvents.slice(-2);
+  }, [filteredTodayEvents, now]);
 
   const formatEventTime = (timestamp: number) => {
     const date = new Date(timestamp);
     const localTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    const isToday = date.toDateString() === new Date().toDateString();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const isTomorrow = date.toDateString() === tomorrow.toDateString();
-    const dayLabel = isToday ? 'Today' : isTomorrow ? 'Tmrw' : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    return { localTime, dayLabel };
+    return { localTime };
   };
 
   const getCountdownStr = (timestamp: number) => {
@@ -208,7 +178,7 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
     }
     if (diffM > 0) return `in ${diffM}m`;
     if (diffM >= -60) return `${Math.abs(diffM)}m ago`;
-    return 'Released';
+    return 'Passed';
   };
 
   const getCurrencyStyle = (curr: string) => {
@@ -221,14 +191,6 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
       case 'AUD': return 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/25';
       case 'CHF': return 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25';
       default: return 'bg-canvas text-text-main border border-border-card';
-    }
-  };
-
-  const getImpactBadge = (impact: string) => {
-    switch (impact) {
-      case 'HIGH': return 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25';
-      case 'MED': return 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25';
-      default: return 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25';
     }
   };
 
@@ -299,41 +261,47 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
       {size === 'small' ? (
         <WidgetCard size={size} className="justify-between text-left">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+            <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
               <Globe size={14} className="text-rose-500 shrink-0" />
-              <span>Economic News</span>
+              <span>Today's News</span>
             </div>
             {filterTriggerButton}
           </div>
 
-          {!nextEvent ? (
+          {isLoading && events.length === 0 ? (
+            <div className="my-auto text-center flex flex-col items-center justify-center">
+              <Loader2 size={16} className="animate-spin text-blue-500 mb-1" />
+              <div className="text-xs text-text-muted">Loading calendar...</div>
+            </div>
+          ) : !nearestEvent ? (
             <div className="my-auto text-center">
-              <div className="text-sm font-semibold text-text-main">No Events</div>
-              <div className="text-xs text-text-muted mt-0.5">Check currency filters</div>
+              <div className="text-sm font-semibold text-text-main">No Events Today</div>
+              <div className="text-xs text-text-muted mt-0.5">No releases scheduled for today</div>
             </div>
           ) : (
             <>
               <div className="my-auto">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className={cn("px-1.5 py-0.5 rounded-[8px] text-[0.6875rem] font-mono font-bold", getCurrencyStyle(nextEvent.currency))}>
-                    {nextEvent.currency}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={cn("px-1.5 py-0.5 rounded-[8px] text-[0.6875rem] font-mono font-bold", getCurrencyStyle(nearestEvent.currency))}>
+                    {nearestEvent.currency}
                   </span>
-                  <span className={cn("px-1.5 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase", getImpactBadge(nextEvent.impact))}>
-                    {nextEvent.impact}
-                  </span>
+                  <ImpactDot 
+                    impact={nearestEvent.impact} 
+                    isImminent={nearestEvent.timestamp - now > 0 && nearestEvent.timestamp - now <= 1800000} 
+                  />
                 </div>
                 <div className="text-sm font-bold text-text-main truncate tracking-tight">
-                  {nextEvent.title}
+                  {nearestEvent.title}
                 </div>
               </div>
 
               <div className="flex items-center justify-between text-[0.6875rem] text-text-muted font-mono pt-1 border-t border-border-card/40">
-                <span>{formatEventTime(nextEvent.timestamp).dayLabel} {formatEventTime(nextEvent.timestamp).localTime}</span>
+                <span>{formatEventTime(nearestEvent.timestamp).localTime}</span>
                 <span className={cn(
                   "font-bold",
-                  nextEvent.timestamp - now > 0 && nextEvent.timestamp - now <= 1800000 ? "text-rose-500 animate-pulse" : "text-text-main"
+                  nearestEvent.timestamp - now > 0 && nearestEvent.timestamp - now <= 1800000 ? "text-rose-500 animate-pulse" : "text-text-main"
                 )}>
-                  {getCountdownStr(nextEvent.timestamp)}
+                  {getCountdownStr(nearestEvent.timestamp)}
                 </span>
               </div>
             </>
@@ -341,20 +309,25 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
         </WidgetCard>
       ) : size === 'medium' ? (
         <WidgetCard 
-          title="Economic Calendar" 
+          title="Today's News" 
           size={size}
           action={filterTriggerButton}
         >
-          {filteredEvents.length === 0 ? (
+          {isLoading && events.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center">
+              <Loader2 size={20} className="animate-spin text-blue-500 mb-2" />
+              <div className="text-xs text-text-muted">Loading calendar...</div>
+            </div>
+          ) : mediumEvents.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
               <Globe size={20} className="text-rose-500/40 mb-1" />
-              <div className="text-sm font-semibold text-text-main">No events found</div>
-              <div className="text-xs text-text-muted mt-0.5">Adjust currency or impact filters</div>
+              <div className="text-sm font-semibold text-text-main">No Events Today</div>
+              <div className="text-xs text-text-muted mt-0.5">No releases scheduled for today</div>
             </div>
           ) : (
             <div className="flex flex-col gap-2 flex-1 justify-between overflow-hidden">
-              {filteredEvents.slice(0, 2).map(ev => {
-                const { localTime, dayLabel } = formatEventTime(ev.timestamp);
+              {mediumEvents.map(ev => {
+                const { localTime } = formatEventTime(ev.timestamp);
                 const countdown = getCountdownStr(ev.timestamp);
                 const isImminent = ev.timestamp - now > 0 && ev.timestamp - now <= 1800000;
 
@@ -367,16 +340,19 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
                       <span className={cn("px-1.5 py-0.5 rounded-[8px] text-[0.6875rem] font-mono font-bold shrink-0", getCurrencyStyle(ev.currency))}>
                         {ev.currency}
                       </span>
+                      <ImpactDot impact={ev.impact} isImminent={isImminent} />
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-semibold text-text-main truncate">
                           {ev.title}
                         </div>
-                        <div className="text-[0.6875rem] text-text-muted font-mono flex items-center gap-1.5 mt-0.5">
-                          <span>{dayLabel} {localTime}</span>
-                          <span>•</span>
-                          <span className={cn("font-bold uppercase", ev.impact === 'HIGH' ? 'text-rose-500' : 'text-amber-500')}>
-                            {ev.impact}
-                          </span>
+                        <div className="text-[0.6875rem] text-text-muted font-mono flex items-center gap-2 mt-0.5">
+                          <span>{localTime}</span>
+                          {ev.forecast !== '—' && (
+                            <>
+                              <span>•</span>
+                              <span>Fc: {ev.forecast}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -384,9 +360,6 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
                     <div className="text-right shrink-0">
                       <div className={cn("text-xs font-mono font-bold", isImminent ? "text-rose-500 animate-pulse" : "text-text-main")}>
                         {countdown}
-                      </div>
-                      <div className="text-[0.6875rem] text-text-muted font-mono">
-                        {ev.forecast !== '—' ? `Fc: ${ev.forecast}` : 'High Volatility'}
                       </div>
                     </div>
                   </div>
@@ -397,20 +370,25 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
         </WidgetCard>
       ) : (
         <WidgetCard 
-          title="Economic Calendar" 
+          title="Today's News" 
           size={size}
           action={filterTriggerButton}
         >
-          {filteredEvents.length === 0 ? (
+          {isLoading && events.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
-              <Globe size={24} className="text-rose-500/40 mb-2" />
-              <div className="text-base font-semibold text-text-main">No events found</div>
-              <div className="text-xs text-text-muted mt-1">Adjust currency or impact filters</div>
+              <Loader2 size={24} className="animate-spin text-blue-500 mb-2" />
+              <div className="text-xs text-text-muted">Loading calendar releases...</div>
+            </div>
+          ) : filteredTodayEvents.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center">
+              <Globe size={24} className="text-rose-500/40 mb-1" />
+              <div className="text-sm font-semibold text-text-main">No Events Match Filters</div>
+              <div className="text-xs text-text-muted mt-0.5">Try selecting more currencies or lower impact</div>
             </div>
           ) : (
             <div className="flex flex-col gap-2 overflow-y-auto flex-1 max-h-[340px] pr-1">
-              {filteredEvents.slice(0, 8).map(ev => {
-                const { localTime, dayLabel } = formatEventTime(ev.timestamp);
+              {filteredTodayEvents.map(ev => {
+                const { localTime } = formatEventTime(ev.timestamp);
                 const countdown = getCountdownStr(ev.timestamp);
                 const isImminent = ev.timestamp - now > 0 && ev.timestamp - now <= 1800000;
 
@@ -419,20 +397,19 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
                     key={ev.id}
                     className="flex items-center justify-between p-2.5 rounded-[14px] bg-canvas border border-border-card hover:border-blue-500/30 transition-colors gap-3"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className={cn("px-2 py-0.5 rounded-[8px] text-xs font-mono font-bold shrink-0", getCurrencyStyle(ev.currency))}>
                         {ev.currency}
                       </span>
-                      <div className="min-w-0">
+                      <ImpactDot impact={ev.impact} isImminent={isImminent} />
+                      <div className="min-w-0 flex-1">
                         <div className="text-sm font-semibold text-text-main truncate">
                           {ev.title}
                         </div>
                         <div className="text-[0.6875rem] text-text-muted font-mono flex items-center gap-2 mt-0.5">
-                          <span>{dayLabel} {localTime}</span>
-                          <span>•</span>
-                          <span className={cn("font-bold uppercase", ev.impact === 'HIGH' ? 'text-rose-500' : 'text-amber-500')}>
-                            {ev.impact} Impact
-                          </span>
+                          <span>{localTime}</span>
+                          {ev.forecast !== '—' && <span>• Fc: {ev.forecast}</span>}
+                          {ev.previous !== '—' && <span>• Pr: {ev.previous}</span>}
                         </div>
                       </div>
                     </div>
@@ -440,9 +417,6 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
                     <div className="text-right shrink-0">
                       <div className={cn("text-xs font-mono font-bold", isImminent ? "text-rose-500 animate-pulse" : "text-text-main")}>
                         {countdown}
-                      </div>
-                      <div className="text-[0.6875rem] text-text-muted font-mono mt-0.5">
-                        Fc: {ev.forecast} / Pr: {ev.previous}
                       </div>
                     </div>
                   </div>
@@ -498,7 +472,7 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
                 <button
                   type="button"
                   onClick={() => updateCurrencies([...ALL_CURRENCIES])}
-                  className="text-blue-500 hover:underline text-[0.6875rem] normal-case"
+                  className="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-500 hover:bg-blue-500/20 text-[0.6875rem] font-medium transition-colors cursor-pointer"
                 >
                   All
                 </button>
@@ -514,7 +488,7 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
                       className={cn(
                         "px-2 py-0.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer",
                         isSelected
-                          ? "bg-blue-500 text-white shadow-2xs"
+                          ? "bg-blue-500 border border-blue-500 text-white shadow-2xs"
                           : "bg-canvas border border-border-card text-text-muted hover:text-text-main"
                       )}
                     >
@@ -529,7 +503,7 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
               <div className="text-[0.6875rem] text-text-muted uppercase font-semibold tracking-wider mb-1.5">
                 Impact Level
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {ALL_IMPACTS.map(imp => {
                   const isSelected = selectedImpacts.includes(imp);
                   return (
@@ -538,13 +512,19 @@ export function EconomicNewsWidget({ size }: WidgetProps) {
                       type="button"
                       onClick={() => toggleImpact(imp)}
                       className={cn(
-                        "flex-1 py-1 rounded-full text-xs font-bold transition-all cursor-pointer text-center",
+                        "flex-1 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2",
                         isSelected
-                          ? "bg-blue-500 text-white shadow-2xs"
+                          ? "bg-blue-500 border border-blue-500 text-white shadow-2xs"
                           : "bg-canvas border border-border-card text-text-muted hover:text-text-main"
                       )}
                     >
-                      {imp}
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        isSelected 
+                          ? "bg-white" 
+                          : imp === 'HIGH' ? "bg-rose-500" : imp === 'MED' ? "bg-amber-500" : "bg-blue-400"
+                      )} />
+                      <span>{imp === 'HIGH' ? 'High' : imp === 'MED' ? 'Med' : 'Low'}</span>
                     </button>
                   );
                 })}

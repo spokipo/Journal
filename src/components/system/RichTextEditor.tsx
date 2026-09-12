@@ -320,7 +320,7 @@ export function RichTextEditor({
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploadingImage}
             title="Insert Image (or paste/drag directly)"
-            className="h-8 px-2.5 rounded-[10px] flex items-center gap-1.5 text-xs font-semibold bg-card border border-border-card text-text-main hover:border-blue-500/50 hover:bg-canvas transition-all cursor-pointer disabled:opacity-50"
+            className="h-8 px-2.5 rounded-[10px] flex items-center gap-2 text-xs font-semibold bg-card border border-border-card text-text-main hover:border-blue-500/50 hover:bg-canvas transition-all cursor-pointer disabled:opacity-50"
           >
             {isUploadingImage ? (
               <>

@@ -50,7 +50,7 @@ export function JournalEmptyState({
           type="button"
           onClick={onResetFilters}
           className={cn(
-            "mt-2 min-h-11 md:h-10 px-4 rounded-full flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-all bg-canvas border border-border-card active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 shadow-xs",
+            "mt-2 min-h-11 md:h-10 px-4 rounded-full flex items-center justify-center gap-2 text-xs font-medium cursor-pointer transition-all bg-canvas border border-border-card active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 shadow-xs",
             isTrades
               ? "text-blue-500 hover:bg-card focus-visible:ring-blue-500"
               : "text-amber-500 hover:bg-card focus-visible:ring-amber-500"
@@ -66,8 +66,8 @@ export function JournalEmptyState({
           onClick={onAction}
           className={
             isTrades
-              ? "mt-2 h-11 md:h-10 px-5 rounded-full bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              : "mt-2 h-11 md:h-10 px-5 rounded-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 active:scale-[0.98] text-sm font-medium transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              ? "mt-2 h-11 md:h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-sm font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all shadow-sm shadow-blue-500/20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              : "mt-2 h-11 md:h-10 px-5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 active:scale-[0.98] text-sm font-medium transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           }
         >
           {isTrades ? 'Log first trade' : 'Create first idea'}

@@ -16,6 +16,7 @@ interface TickerSelectProps {
   value: string;
   onChange: (symbol: string, instrument?: Instrument) => void;
   error?: boolean;
+  className?: string;
 }
 
 // §2 Tokens & §4 Pill/Badge: px-2 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase
@@ -26,7 +27,7 @@ const CLASS_BADGES: Record<Instrument['asset_class'], { label: string; className
   indices: { label: 'INDEX', className: 'bg-canvas text-text-muted border border-border-card' },
 };
 
-export function TickerSelect({ value, onChange, error }: TickerSelectProps) {
+export function TickerSelect({ value, onChange, error, className }: TickerSelectProps) {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -89,7 +90,7 @@ export function TickerSelect({ value, onChange, error }: TickerSelectProps) {
   const selected = instruments.find((i) => i.symbol === value);
 
   return (
-    <div className="relative w-full" ref={containerRef}>
+    <div className={cn("relative w-full", className)} ref={containerRef}>
       {/* Trigger: L1 Element (rounded-[18px], min-h-11 on mobile, h-10 on desktop) */}
       <button
         type="button"
@@ -98,7 +99,7 @@ export function TickerSelect({ value, onChange, error }: TickerSelectProps) {
         aria-haspopup="listbox"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          "w-full min-h-11 md:min-h-10 h-11 md:h-10 bg-canvas border rounded-[18px] px-3.5 flex items-center justify-between text-xs md:text-sm text-text-main transition-all cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500",
+          "w-full min-h-11 md:min-h-10 h-11 md:h-10 bg-card md:bg-canvas border rounded-[18px] px-3.5 flex items-center justify-between text-xs md:text-sm text-text-main transition-all cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:border-blue-500 shadow-xs",
           error
             ? "border-rose-500 ring-1 ring-rose-500/20"
             : isOpen
@@ -166,7 +167,7 @@ export function TickerSelect({ value, onChange, error }: TickerSelectProps) {
                   type="button"
                   onClick={() => setSearch('')}
                   aria-label="Clear search"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main cursor-pointer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-canvas border border-border-card text-text-muted hover:text-text-main flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <X size={12} />
                 </button>

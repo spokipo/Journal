@@ -31,6 +31,7 @@ const INITIAL_FILTERS: FilterState = {
   customStartDate: undefined,
   customEndDate: undefined,
   accountId: 'all',
+  timeframe: 'all',
   searchQuery: '',
 };
 
@@ -70,7 +71,7 @@ function StatsSkeleton() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-4">
           <div className="h-4 w-36 bg-canvas rounded-[14px]" />
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {[...Array(3)].map((_, idx) => (
               <div key={idx} className="h-10 bg-canvas/70 rounded-[14px]" />
             ))}
@@ -78,7 +79,7 @@ function StatsSkeleton() {
         </div>
         <div className="h-64 bg-card border border-border-card rounded-[26px] p-5 space-y-4">
           <div className="h-4 w-36 bg-canvas rounded-[14px]" />
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {[...Array(3)].map((_, idx) => (
               <div key={idx} className="h-10 bg-canvas/70 rounded-[14px]" />
             ))}
@@ -255,6 +256,14 @@ export function StatsView() {
     return sortTrades(filteredTrades, sortBy);
   }, [filteredTrades, sortBy]);
 
+  const availableTimeframes = useMemo(() => {
+    const set = new Set<string>();
+    rawTrades.forEach((t) => {
+      if (t.timeframe) set.add(t.timeframe);
+    });
+    return Array.from(set).sort();
+  }, [rawTrades]);
+
   const handleResetFilters = () => {
     setFilters(INITIAL_FILTERS);
     setSortBy('date_desc');
@@ -297,6 +306,7 @@ export function StatsView() {
       <StatsToolbar
         filters={filters}
         accounts={accounts}
+        availableTimeframes={availableTimeframes}
         metricMode={metricMode}
         onMetricModeChange={setMetricMode}
         onFilterChange={setFilters}

@@ -20,7 +20,7 @@ export function PreferencesSection() {
         transition={{ duration: 0.18, delay: 0, ease: [0.16, 1, 0.3, 1] }}
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-canvas border border-border-card rounded-[18px]"
       >
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-[14px] bg-card border border-border-card flex items-center justify-center shrink-0">
             {theme === 'dark' ? (
               <Moon size={18} className="text-blue-500" />
@@ -64,7 +64,7 @@ export function PreferencesSection() {
         transition={{ duration: 0.18, delay: 0.03, ease: [0.16, 1, 0.3, 1] }}
         className="flex items-center justify-between gap-3 p-4 bg-canvas border border-border-card rounded-[18px]"
       >
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-[14px] bg-card border border-border-card flex items-center justify-center shrink-0">
             {notifications ? (
               <Bell size={18} className="text-blue-500" />
@@ -96,7 +96,7 @@ export function PreferencesSection() {
         transition={{ duration: 0.18, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-canvas border border-border-card rounded-[18px]"
       >
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-[14px] bg-card border border-border-card flex items-center justify-center shrink-0">
             <Globe size={18} className="text-text-muted" />
           </div>

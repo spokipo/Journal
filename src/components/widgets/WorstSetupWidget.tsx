@@ -14,7 +14,7 @@ export function WorstSetupWidget({ size, stats }: WidgetProps) {
     if (!worstSetup) {
       return (
         <WidgetCard size={size} className="justify-between text-left">
-          <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+          <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
             <Target size={14} className="text-rose-500 shrink-0" />
             <span>Worst Setup</span>
           </div>
@@ -38,7 +38,7 @@ export function WorstSetupWidget({ size, stats }: WidgetProps) {
     return (
       <WidgetCard size={size} className="justify-between text-left">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+          <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
             <Target size={14} className="text-rose-500 shrink-0" />
             <span>Worst Setup</span>
           </div>
@@ -86,7 +86,7 @@ export function WorstSetupWidget({ size, stats }: WidgetProps) {
       ) : (
         <div className="flex items-center justify-between gap-4 flex-1 h-full">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+            <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
               <Target size={14} className="text-rose-500 shrink-0" />
               <span>Worst Setup</span>
             </div>

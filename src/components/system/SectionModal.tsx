@@ -67,8 +67,8 @@ export function SectionModal({
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Section Title */}
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider">
+        <div className="space-y-2">
+          <label className="block text-[0.6875rem] font-semibold text-text-muted uppercase tracking-wider">
             Section Title
           </label>
           <input
@@ -81,7 +81,7 @@ export function SectionModal({
             placeholder="e.g. Risk Management, Daily Routine..."
             autoFocus
             className={cn(
-              "w-full h-11 md:h-10 bg-canvas border rounded-[18px] px-3.5 text-xs md:text-sm text-text-main placeholder:text-text-muted/60 outline-none transition-colors",
+              "w-full h-11 md:h-10 bg-card md:bg-canvas border rounded-[18px] px-3.5 text-xs md:text-sm text-text-main placeholder:text-text-muted/60 outline-none transition-colors shadow-xs",
               error
                 ? "border-rose-500 focus:border-rose-500"
                 : "border-border-card hover:border-blue-500/50 focus:border-blue-500"
@@ -93,7 +93,7 @@ export function SectionModal({
         {/* Icon Picker */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <label className="block text-[0.6875rem] font-semibold text-text-muted uppercase tracking-wider">
               Choose Icon
             </label>
             <span className="text-[0.6875rem] text-text-muted font-mono">
@@ -101,7 +101,7 @@ export function SectionModal({
             </span>
           </div>
 
-          <div className="grid grid-cols-6 gap-2 p-2 bg-canvas border border-border-card rounded-[20px] max-h-48 overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-6 gap-2 p-2 bg-card md:bg-canvas border border-border-card rounded-[18px] max-h-48 overflow-y-auto custom-scrollbar">
             {Object.entries(SYSTEM_ICONS).map(([name, IconComponent]) => {
               const isSelected = selectedIcon === name;
               return (

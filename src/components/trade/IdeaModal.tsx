@@ -385,7 +385,7 @@ export function IdeaModal({
                         setIsMobileActionMenuOpen(false);
                         setIsEditing(true);
                       }}
-                      className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-text-main hover:bg-canvas transition-colors text-left w-full cursor-pointer"
+                      className="h-11 px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-text-main hover:bg-canvas transition-colors text-left w-full cursor-pointer"
                     >
                       <Pencil size={15} className="text-text-muted" />
                       <span>Edit Idea</span>
@@ -405,7 +405,7 @@ export function IdeaModal({
                             screenshots,
                           });
                         }}
-                        className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left w-full cursor-pointer"
+                        className="h-11 px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-emerald-500 hover:bg-emerald-500/10 transition-colors text-left w-full cursor-pointer"
                       >
                         <Zap size={15} />
                         <span>Execute Trade</span>
@@ -416,7 +416,7 @@ export function IdeaModal({
                       <button
                         type="button"
                         onClick={handleInvalidate}
-                        className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-amber-500 hover:bg-amber-500/10 transition-colors text-left w-full cursor-pointer"
+                        className="h-11 px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-amber-500 hover:bg-amber-500/10 transition-colors text-left w-full cursor-pointer"
                       >
                         <Ban size={15} />
                         <span>Invalidate Idea</span>
@@ -427,7 +427,7 @@ export function IdeaModal({
                       <button
                         type="button"
                         onClick={handleExtendLife}
-                        className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-blue-500 hover:bg-blue-500/10 transition-colors text-left w-full cursor-pointer"
+                        className="h-11 px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-blue-500 hover:bg-blue-500/10 transition-colors text-left w-full cursor-pointer"
                       >
                         <RotateCcw size={15} />
                         <span>Reactivate (+24h)</span>
@@ -443,7 +443,7 @@ export function IdeaModal({
                             setIsMobileActionMenuOpen(false);
                             setShowDeleteConfirm(true);
                           }}
-                          className="h-11 px-3 rounded-[14px] flex items-center gap-2.5 text-xs font-medium text-rose-500 hover:bg-rose-500/10 transition-colors text-left w-full cursor-pointer"
+                          className="h-11 px-3 rounded-[14px] flex items-center gap-2 text-xs font-medium text-rose-500 hover:bg-rose-500/10 transition-colors text-left w-full cursor-pointer"
                         >
                           <Trash2 size={15} />
                           <span>Delete Idea</span>
@@ -497,7 +497,7 @@ export function IdeaModal({
               <button
                 type="submit"
                 disabled={isSaving || isUploading || !symbol}
-                className="h-10 px-5 rounded-full bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
+                className="h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-sm font-medium hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
               >
                 {isSaving && <Loader2 size={16} className="animate-spin shrink-0" />}
                 <span>{editingIdea ? 'Save Changes' : 'Create Idea'}</span>
@@ -510,7 +510,7 @@ export function IdeaModal({
                   <button
                     type="button"
                     onClick={handleInvalidate}
-                    className="h-10 px-4 rounded-full bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-[0.98]"
+                    className="h-10 px-4 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer active:scale-[0.98]"
                   >
                     <Ban size={15} />
                     <span>Invalidate Idea</span>
@@ -529,7 +529,7 @@ export function IdeaModal({
                           screenshots,
                         });
                       }}
-                      className="h-10 px-5 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm shadow-emerald-500/20 cursor-pointer flex items-center gap-1.5"
+                      className="h-10 px-5 rounded-full bg-emerald-500 border border-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm shadow-emerald-500/20 cursor-pointer flex items-center gap-2"
                     >
                       <Zap size={15} />
                       <span>Execute Trade</span>
@@ -542,7 +542,7 @@ export function IdeaModal({
                 <button
                   type="button"
                   onClick={handleExtendLife}
-                  className="h-10 px-5 rounded-full bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5"
+                  className="h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2"
                 >
                   <RotateCcw size={15} />
                   <span>Reactivate (+24h)</span>
@@ -550,7 +550,7 @@ export function IdeaModal({
               )}
 
               {effectiveStatus === 'executed' && (
-                <div className="h-10 px-4 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold flex items-center gap-1.5">
+                <div className="h-10 px-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2">
                   <CheckCircle2 size={15} />
                   <span>Executed</span>
                 </div>
@@ -672,7 +672,7 @@ export function IdeaModal({
                         screenshots,
                       });
                     }}
-                    className="w-full h-11 rounded-full bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-95 flex items-center justify-center gap-2 shadow-xs transition-all"
+                    className="w-full h-11 rounded-full bg-emerald-500 border border-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-95 flex items-center justify-center gap-2 shadow-xs transition-all"
                   >
                     <Zap size={16} />
                     <span>Execute Trade</span>
@@ -683,7 +683,7 @@ export function IdeaModal({
                   <button
                     type="button"
                     onClick={handleExtendLife}
-                    className="w-full h-11 rounded-full bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-95 flex items-center justify-center gap-2 shadow-xs transition-all"
+                    className="w-full h-11 rounded-full bg-blue-500 border border-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-95 flex items-center justify-center gap-2 shadow-xs transition-all"
                   >
                     <RotateCcw size={16} />
                     <span>Reactivate (+24h)</span>

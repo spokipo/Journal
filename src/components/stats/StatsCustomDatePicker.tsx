@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { ModalShell } from '../ui/ModalShell';
 
 interface StatsCustomDatePickerProps {
   isOpen: boolean;
@@ -39,17 +39,6 @@ export function StatsCustomDatePicker({
       if (!isNaN(d.getTime())) setViewDate(d);
     }
   }, [isOpen, initialStart, initialEnd]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
 
   // Calendar logic
   const year = viewDate.getFullYear();
@@ -127,69 +116,75 @@ export function StatsCustomDatePicker({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md bg-card border border-border-card rounded-[26px] p-5 shadow-2xl flex flex-col space-y-4"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-border-card">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-[14px] bg-blue-500/10 flex items-center justify-center text-blue-500">
-              <Calendar size={16} />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-text-main">Custom Date Range</h3>
-              <p className="text-[0.6875rem] text-text-muted">Select analysis timeframe</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Custom Date Range"
+      mobileTitle="Date Range"
+      size="sm"
+      desktopIcon={<Calendar size={18} />}
+      desktopIconClass="bg-blue-500/10 text-blue-500"
+      mobileRightAction={{
+        icon: <Check size={18} />,
+        onClick: handleConfirm,
+        ariaLabel: 'Apply date range',
+        isPrimary: true,
+      }}
+      desktopFooterLeft={
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-10 px-4 rounded-full bg-canvas border border-border-card text-xs font-semibold text-text-main hover:bg-card active:scale-[0.98] transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+      }
+      desktopFooterRight={
+        <button
+          type="button"
+          onClick={handleConfirm}
+          className="h-10 px-4 rounded-full bg-blue-500 border border-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+        >
+          <Check size={14} />
+          <span>Apply Range</span>
+        </button>
+      }
+    >
+      <div className="space-y-4">
         {/* Quick Presets */}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => handlePreset(7)}
-            className="px-2.5 py-1 text-xs rounded-[14px] bg-canvas text-text-muted hover:text-text-main hover:bg-canvas/80 border border-border-card transition-colors"
+            className="px-2.5 py-1 text-xs rounded-full bg-canvas text-text-muted hover:text-text-main hover:bg-card border border-border-card transition-colors cursor-pointer"
           >
             Last 7D
           </button>
           <button
             type="button"
             onClick={() => handlePreset(30)}
-            className="px-2.5 py-1 text-xs rounded-[14px] bg-canvas text-text-muted hover:text-text-main hover:bg-canvas/80 border border-border-card transition-colors"
+            className="px-2.5 py-1 text-xs rounded-full bg-canvas text-text-muted hover:text-text-main hover:bg-card border border-border-card transition-colors cursor-pointer"
           >
             Last 30D
           </button>
           <button
             type="button"
             onClick={() => handlePreset(90)}
-            className="px-2.5 py-1 text-xs rounded-[14px] bg-canvas text-text-muted hover:text-text-main hover:bg-canvas/80 border border-border-card transition-colors"
+            className="px-2.5 py-1 text-xs rounded-full bg-canvas text-text-muted hover:text-text-main hover:bg-card border border-border-card transition-colors cursor-pointer"
           >
             Last 90D
           </button>
           <button
             type="button"
             onClick={handleThisMonthPreset}
-            className="px-2.5 py-1 text-xs rounded-[14px] bg-canvas text-text-muted hover:text-text-main hover:bg-canvas/80 border border-border-card transition-colors"
+            className="px-2.5 py-1 text-xs rounded-full bg-canvas text-text-muted hover:text-text-main hover:bg-card border border-border-card transition-colors cursor-pointer"
           >
             This Month
           </button>
           <button
             type="button"
             onClick={handleThisYearPreset}
-            className="px-2.5 py-1 text-xs rounded-[14px] bg-canvas text-text-muted hover:text-text-main hover:bg-canvas/80 border border-border-card transition-colors"
+            className="px-2.5 py-1 text-xs rounded-full bg-canvas text-text-muted hover:text-text-main hover:bg-card border border-border-card transition-colors cursor-pointer"
           >
             This Year
           </button>
@@ -200,7 +195,8 @@ export function StatsCustomDatePicker({
           <button
             type="button"
             onClick={handlePrevMonth}
-            className="w-8 h-8 rounded-[14px] flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas transition-colors"
+            aria-label="Previous month"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-main hover:bg-card border border-border-card transition-colors cursor-pointer"
           >
             <ChevronLeft size={16} />
           </button>
@@ -210,7 +206,8 @@ export function StatsCustomDatePicker({
           <button
             type="button"
             onClick={handleNextMonth}
-            className="w-8 h-8 rounded-[14px] flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas transition-colors"
+            aria-label="Next month"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-main hover:bg-card border border-border-card transition-colors cursor-pointer"
           >
             <ChevronRight size={16} />
           </button>
@@ -245,7 +242,7 @@ export function StatsCustomDatePicker({
                   onClick={() => handleDayClick(day)}
                   className={cn(
                     "h-8 rounded-[10px] text-xs font-mono tabular-nums flex items-center justify-center transition-all cursor-pointer select-none",
-                    selected && "bg-blue-500 text-white font-semibold shadow-sm",
+                    selected && "bg-blue-500 text-white font-semibold shadow-xs",
                     inRange && !selected && "bg-blue-500/15 text-blue-500 font-medium",
                     !selected && !inRange && "text-text-main hover:bg-canvas"
                   )}
@@ -279,26 +276,20 @@ export function StatsCustomDatePicker({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 md:h-9 px-4 rounded-[18px] bg-card border border-border-card text-xs font-medium text-text-muted hover:text-text-main hover:bg-canvas transition-colors"
-          >
-            Cancel
-          </button>
+        {/* Mobile Action Button */}
+        <div className="pt-2 md:hidden">
           <button
             type="button"
             onClick={handleConfirm}
-            className="h-10 md:h-9 px-4 rounded-[18px] bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-sm shadow-blue-500/20"
+            className="w-full h-11 rounded-full bg-blue-500 border border-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer shadow-xs"
           >
-            <Check size={14} />
-            Apply Range
+            <Check size={16} />
+            <span>Apply Range</span>
           </button>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </ModalShell>
   );
 }
+
 

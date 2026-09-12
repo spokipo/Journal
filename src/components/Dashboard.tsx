@@ -603,7 +603,7 @@ export function Dashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="w-48 sm:w-56">
             <Select
               value={selectedAccountId}
@@ -618,7 +618,7 @@ export function Dashboard() {
           {accounts.length === 0 && !isLoadingData && (
             <a
               href="/settings"
-              className="h-10 px-3.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+              className="h-10 px-3.5 rounded-full bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 text-blue-500 text-xs font-semibold flex items-center gap-2 transition-colors shrink-0"
               title="Add a trading account in Settings"
             >
               <Plus size={14} />
@@ -679,14 +679,14 @@ export function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setIsAddMenuOpen(true)}
-                  className="h-10 px-4 rounded-full bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-all active:scale-[0.98] shadow-sm shadow-blue-500/20 cursor-pointer"
+                  className="h-10 px-4 rounded-full bg-blue-500 border border-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-all active:scale-[0.98] shadow-sm shadow-blue-500/20 cursor-pointer"
                 >
                   Add Widget
                 </button>
                 <button
                   type="button"
                   onClick={restoreDefaultLayout}
-                  className="h-10 px-4 rounded-full bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+                  className="h-10 px-4 rounded-full bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas transition-colors cursor-pointer flex items-center gap-2 active:scale-[0.98]"
                 >
                   <RotateCcw size={14} />
                   Defaults
@@ -773,7 +773,7 @@ export function Dashboard() {
                 onClick={() => addWidget(type)}
                 className="w-full flex items-center justify-between p-3.5 bg-canvas/60 hover:bg-canvas border border-border-card hover:border-blue-500/50 rounded-[18px] text-left transition-all active:scale-[0.98] cursor-pointer group"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="h-11 w-11 rounded-[14px] bg-card border border-border-card flex items-center justify-center shrink-0 group-hover:border-blue-500/40 transition-colors">
                     {iconMap[type]}
                   </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { lockBodyScroll } from '../../lib/scrollLock';
@@ -49,6 +50,7 @@ export function JournalView() {
   const [selectedIdeaStatus, setSelectedIdeaStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOptionKey>('date_desc');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [visibleCount, setVisibleCount] = useState<number>(12);
 
   const [now, setNow] = useState<number>(Date.now());
 
@@ -303,6 +305,14 @@ export function JournalView() {
       .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }, [ideas, searchQuery, selectedIdeaStatus, now]);
 
+  // Сброс пагинации к 12 при смене вкладки, поискового запроса, фильтров или сортировки
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [activeTab, searchQuery, selectedAccounts, selectedOutcomes, selectedSessions, selectedSetups, selectedMistakes, selectedIdeaStatus, sortBy]);
+
+  const visibleTrades = useMemo(() => filteredTrades.slice(0, visibleCount), [filteredTrades, visibleCount]);
+  const visibleIdeas = useMemo(() => filteredIdeas.slice(0, visibleCount), [filteredIdeas, visibleCount]);
+
   const stats = useMemo(() => {
     const total = filteredTrades.length;
     if (total === 0) return { total: 0, winRate: 0, netR: 0, netPercent: 0, profitFactor: 0 };
@@ -480,29 +490,49 @@ export function JournalView() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className={cn(
-                viewMode === 'grid'
-                  ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
-                  : "flex flex-col gap-3"
-              )}
+              className="flex flex-col gap-4"
             >
-              {filteredTrades.map((t, idx) => (
-                <JournalItemCard
-                  key={t.id}
-                  item={t}
-                  type="trade"
-                  index={idx}
-                  viewMode={viewMode}
-                  now={now}
-                  playbooks={playbooks}
-                  mistakes={mistakes}
-                  onClick={() => {
-                    setEditingTrade(t);
-                    setIsTradeModalOpen(true);
-                  }}
-                  onImageClick={openImageViewer}
-                />
-              ))}
+              <div
+                className={cn(
+                  viewMode === 'grid'
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+                    : "flex flex-col gap-3"
+                )}
+              >
+                {visibleTrades.map((t, idx) => (
+                  <JournalItemCard
+                    key={t.id}
+                    item={t}
+                    type="trade"
+                    index={idx}
+                    viewMode={viewMode}
+                    now={now}
+                    playbooks={playbooks}
+                    mistakes={mistakes}
+                    onClick={() => {
+                      setEditingTrade(t);
+                      setIsTradeModalOpen(true);
+                    }}
+                    onImageClick={openImageViewer}
+                  />
+                ))}
+              </div>
+
+              {filteredTrades.length > visibleCount && (
+                <div className="flex justify-center pt-2 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 12)}
+                    className="h-10 min-h-11 md:min-h-10 px-5 rounded-full bg-card border border-border-card text-text-main hover:bg-canvas active:scale-[0.98] transition-all text-xs font-semibold inline-flex items-center gap-2 shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    <span>Load more</span>
+                    <span className="font-mono tabular-nums text-[0.6875rem] text-text-muted">
+                      ({filteredTrades.length - visibleCount})
+                    </span>
+                    <ChevronDown size={14} className="text-text-muted" />
+                  </button>
+                </div>
+              )}
             </motion.div>
           )
         ) : (
@@ -523,29 +553,49 @@ export function JournalView() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className={cn(
-                viewMode === 'grid'
-                  ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
-                  : "flex flex-col gap-3"
-              )}
+              className="flex flex-col gap-4"
             >
-              {filteredIdeas.map((i, idx) => (
-                <JournalItemCard
-                  key={i.id}
-                  item={i}
-                  type="idea"
-                  index={idx}
-                  viewMode={viewMode}
-                  now={now}
-                  playbooks={playbooks}
-                  mistakes={mistakes}
-                  onClick={() => {
-                    setEditingIdea(i);
-                    setIsIdeaModalOpen(true);
-                  }}
-                  onImageClick={openImageViewer}
-                />
-              ))}
+              <div
+                className={cn(
+                  viewMode === 'grid'
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+                    : "flex flex-col gap-3"
+                )}
+              >
+                {visibleIdeas.map((i, idx) => (
+                  <JournalItemCard
+                    key={i.id}
+                    item={i}
+                    type="idea"
+                    index={idx}
+                    viewMode={viewMode}
+                    now={now}
+                    playbooks={playbooks}
+                    mistakes={mistakes}
+                    onClick={() => {
+                      setEditingIdea(i);
+                      setIsIdeaModalOpen(true);
+                    }}
+                    onImageClick={openImageViewer}
+                  />
+                ))}
+              </div>
+
+              {filteredIdeas.length > visibleCount && (
+                <div className="flex justify-center pt-2 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 12)}
+                    className="h-10 min-h-11 md:min-h-10 px-5 rounded-full bg-card border border-border-card text-text-main hover:bg-canvas active:scale-[0.98] transition-all text-xs font-semibold inline-flex items-center gap-2 shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    <span>Load more</span>
+                    <span className="font-mono tabular-nums text-[0.6875rem] text-text-muted">
+                      ({filteredIdeas.length - visibleCount})
+                    </span>
+                    <ChevronDown size={14} className="text-text-muted" />
+                  </button>
+                </div>
+              )}
             </motion.div>
           )
         )}

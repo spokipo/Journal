@@ -174,7 +174,7 @@ export function ProfileSection({ user, onUserUpdate }: ProfileSectionProps) {
 
           {/* Form Fields */}
           <div className="flex-1 w-full space-y-4">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <label
                 htmlFor="settings-nickname-input"
                 className="text-xs font-semibold uppercase tracking-wider text-text-muted"
@@ -191,7 +191,7 @@ export function ProfileSection({ user, onUserUpdate }: ProfileSectionProps) {
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <label
                 htmlFor="settings-email-input"
                 className="text-xs font-semibold uppercase tracking-wider text-text-muted"

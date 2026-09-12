@@ -7,6 +7,7 @@ import {
   BookMarked, 
   AlertTriangle, 
   Clock, 
+  Timer,
   Percent, 
   Scale, 
   Plus, 
@@ -18,7 +19,8 @@ import {
   Trash2,
   Wallet,
   Lightbulb,
-  Pencil
+  Pencil,
+  X
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -79,6 +81,7 @@ export function TradeModal({
   const [direction, setDirection] = useState<'long' | 'short'>('long');
   const [outcome, setOutcome] = useState<TradeOutcome>('TP');
   const [session, setSession] = useState<TradeSession>('LONDON');
+  const [timeframe, setTimeframe] = useState<string>('');
   const [riskPercent, setRiskPercent] = useState<string>('1.0');
   const [rr, setRr] = useState<string>('2.5');
   const [setupId, setSetupId] = useState('');
@@ -91,9 +94,15 @@ export function TradeModal({
   const [newMistakeName, setNewMistakeName] = useState('');
   const [isSavingMistake, setIsSavingMistake] = useState(false);
 
+  // Inline Timeframe Creator
+  const [isCreatingTimeframe, setIsCreatingTimeframe] = useState(false);
+  const [newTimeframeName, setNewTimeframeName] = useState('');
+  const [isSavingTimeframe, setIsSavingTimeframe] = useState(false);
+
   // Справочники
   const [playbooks, setPlaybooks] = useState<{ id: string; title: string }[]>([]);
   const [mistakes, setMistakes] = useState<{ id: string; name: string }[]>([]);
+  const [customTimeframes, setCustomTimeframes] = useState<{ id: string; name: string }[]>([]);
   const [accounts, setAccounts] = useState<{ id: string; name: string; is_default: boolean }[]>([]);
 
   // Состояния загрузки
@@ -140,10 +149,11 @@ export function TradeModal({
   useEffect(() => {
     if (!isOpen || !user || !isSupabaseConfigured) return;
     async function loadData() {
-      const [pbRes, mistRes, accRes] = await Promise.all([
+      const [pbRes, mistRes, accRes, tfRes] = await Promise.all([
         supabase.from('playbooks').select('id, title').eq('user_id', user.id).eq('is_active', true).order('title', { ascending: true }),
         supabase.from('user_mistakes').select('id, name').eq('user_id', user.id).order('name', { ascending: true }),
-        supabase.from('trading_accounts').select('id, name, is_default').eq('user_id', user.id).eq('is_archived', false).order('name', { ascending: true })
+        supabase.from('trading_accounts').select('id, name, is_default').eq('user_id', user.id).eq('is_archived', false).order('name', { ascending: true }),
+        supabase.from('user_timeframes').select('id, name').eq('user_id', user.id).order('created_at', { ascending: true })
       ]);
       if (pbRes.data) setPlaybooks(pbRes.data);
       if (mistRes.data) setMistakes(mistRes.data);
@@ -153,6 +163,17 @@ export function TradeModal({
           const def = accRes.data.find((a: any) => a.is_default);
           if (def) setAccountId(def.id);
           else if (accRes.data.length > 0) setAccountId(accRes.data[0].id);
+        }
+      }
+      if (tfRes.data) {
+        setCustomTimeframes(tfRes.data);
+      } else {
+        const cachedTf = localStorage.getItem('user_timeframes_offline');
+        if (cachedTf) {
+          try {
+            const parsed = JSON.parse(cachedTf);
+            if (Array.isArray(parsed)) setCustomTimeframes(parsed);
+          } catch (e) {}
         }
       }
     }
@@ -168,6 +189,7 @@ export function TradeModal({
         setDirection(rawDir === 'short' ? 'short' : 'long');
         setOutcome((editingTrade.outcome as TradeOutcome) || 'TP');
         setSession((editingTrade.session as TradeSession) || 'LONDON');
+        setTimeframe(editingTrade.timeframe || '');
         setRiskPercent(editingTrade.risk_percent?.toString() || '1.0');
         setRr(editingTrade.rr?.toString() || '2.5');
         setSetupId(editingTrade.setup_id || '');
@@ -200,11 +222,13 @@ export function TradeModal({
           setDirection(rawDir === 'short' ? 'short' : 'long');
           const rawSession = String(sourceIdea.session || 'LONDON').toUpperCase();
           setSession((rawSession as TradeSession) || 'LONDON');
+          setTimeframe((sourceIdea as any).timeframe || '');
           setNotes(sourceIdea.notes || '');
         } else {
           setSymbol('');
           setDirection('long');
           setSession('LONDON');
+          setTimeframe('');
           setNotes('');
         }
         setOutcome('TP');
@@ -215,6 +239,8 @@ export function TradeModal({
       }
       setIsCreatingMistake(false);
       setNewMistakeName('');
+      setIsCreatingTimeframe(false);
+      setNewTimeframeName('');
       setError(null);
       setShowDeleteConfirm(false);
     }
@@ -228,6 +254,7 @@ export function TradeModal({
       setDirection(rawDir === 'short' ? 'short' : 'long');
       setOutcome((editingTrade.outcome as TradeOutcome) || 'TP');
       setSession((editingTrade.session as TradeSession) || 'LONDON');
+      setTimeframe(editingTrade.timeframe || '');
       setRiskPercent(editingTrade.risk_percent?.toString() || '1.0');
       setRr(editingTrade.rr?.toString() || '2.5');
       setSetupId(editingTrade.setup_id || '');
@@ -271,6 +298,43 @@ export function TradeModal({
     }
   };
 
+  const handleCreateTimeframe = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newTimeframeName.trim();
+    if (!trimmed) {
+      setIsCreatingTimeframe(false);
+      return;
+    }
+    setIsSavingTimeframe(true);
+    try {
+      let createdItem = { id: `local-${Date.now()}`, name: trimmed };
+      if (isSupabaseConfigured && user) {
+        const { data, error: insertErr } = await supabase
+          .from('user_timeframes')
+          .insert([{ name: trimmed, user_id: user.id }])
+          .select('id, name')
+          .single();
+        if (!insertErr && data) {
+          createdItem = data;
+        }
+      }
+      setCustomTimeframes((prev) => {
+        const next = [...prev.filter((t) => t.name.toLowerCase() !== trimmed.toLowerCase()), createdItem];
+        try {
+          localStorage.setItem('user_timeframes_offline', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+      setTimeframe(trimmed);
+      setNewTimeframeName('');
+      setIsCreatingTimeframe(false);
+    } catch (err: any) {
+      console.error('Error creating timeframe:', err);
+    } finally {
+      setIsSavingTimeframe(false);
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!symbol) {
@@ -291,7 +355,7 @@ export function TradeModal({
 
       const calcPnlPercent = Number((calcPnlR * parsedRisk).toFixed(4));
       const payload = {
-        symbol, direction: direction.toUpperCase(), outcome, session,
+        symbol, direction: direction.toUpperCase(), outcome, session, timeframe: timeframe || null,
         risk_percent: parsedRisk, rr: parsedRr, pnl_r: calcPnlR, pnl_percent: calcPnlPercent,
         setup_id: setupId || null, mistake_ids: mistakeIdsArray, account_id: accountId || null,
         idea_id: activeIdea?.id || null, screenshots, notes: notes.trim() || null,
@@ -340,6 +404,19 @@ export function TradeModal({
       setIsDeleting(false);
     }
   };
+
+  const allTimeframeNames = Array.from(
+    new Set([
+      ...customTimeframes.map((ct) => ct.name).filter(Boolean),
+      ...(editingTrade?.timeframe ? [editingTrade.timeframe] : []),
+      ...(timeframe ? [timeframe] : []),
+    ])
+  );
+
+  const timeframeOptions = [
+    { value: '', label: allTimeframeNames.length === 0 ? 'No timeframes (click + New)' : 'None / Not specified' },
+    ...allTimeframeNames.map((tf) => ({ value: tf, label: tf })),
+  ];
 
   const playbookOptions = [{ value: '', label: 'Discretionary (No Setup)' }, ...playbooks.map((p) => ({ value: p.id, label: p.title }))];
   const mistakeOptions = [{ value: '', label: 'None (Clean Execution)' }, ...mistakes.map((m) => ({ value: m.id, label: m.name }))];
@@ -413,7 +490,7 @@ export function TradeModal({
               disabled={isDeleting}
               onClick={() => setShowDeleteConfirm(true)}
               title="Delete Trade"
-              className="h-10 px-4 rounded-full flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors cursor-pointer active:scale-95 disabled:opacity-50 text-sm font-medium"
+              className="h-10 px-4 rounded-full flex items-center justify-center gap-2 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-rose-500 transition-colors cursor-pointer active:scale-95 disabled:opacity-50 text-sm font-medium"
             >
               {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
               <span>Delete</span>
@@ -433,7 +510,7 @@ export function TradeModal({
               <button
                 type="submit"
                 disabled={isSubmitting || isUploading || !symbol}
-                className="h-10 px-5 rounded-full bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
+                className="h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-sm font-medium hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
               >
                 {isSubmitting && <Loader2 size={16} className="animate-spin shrink-0" />}
                 <span>{editingTrade ? 'Save Changes' : activeIdea ? 'Execute Trade' : 'Save Trade'}</span>
@@ -501,8 +578,8 @@ export function TradeModal({
                 </div>
               </div>
 
-              {/* Account / Setup / Mistakes Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Account / Setup / Timeframe / Mistakes Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-4 bg-card md:bg-canvas border border-border-card rounded-[18px] space-y-1">
                   <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted flex items-center gap-2">
                     <Wallet size={12} className="text-blue-500" /> Account
@@ -518,6 +595,15 @@ export function TradeModal({
                   </span>
                   <p className="text-xs font-semibold text-text-main truncate">
                     {currentPlaybookTitle || 'Discretionary'}
+                  </p>
+                </div>
+
+                <div className="p-4 bg-card md:bg-canvas border border-border-card rounded-[18px] space-y-1">
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted flex items-center gap-2">
+                    <Timer size={12} className="text-blue-500" /> Entry TF
+                  </span>
+                  <p className="text-xs font-semibold text-text-main font-mono truncate">
+                    {timeframe || editingTrade?.timeframe || 'Not specified'}
                   </p>
                 </div>
 
@@ -776,7 +862,7 @@ export function TradeModal({
                   />
                 </div>
 
-                {/* Row 4: Playbook Setup (Left) + Execution Mistake (Right) */}
+                {/* Row 4: Playbook Setup (Left) + Entry Timeframe (Right) */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between h-5">
                     <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-2">
@@ -793,6 +879,64 @@ export function TradeModal({
                 </div>
 
                 <div className="space-y-2">
+                  <div className="flex items-center justify-between h-5">
+                    <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-2">
+                      <Timer size={12} className="text-blue-500" />
+                      <span>Entry Timeframe</span>
+                    </label>
+                    {!isCreatingTimeframe && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingTimeframe(true)}
+                        className="text-[0.6875rem] font-semibold text-blue-500 hover:text-blue-600 flex items-center gap-1 cursor-pointer min-h-[24px]"
+                      >
+                        <Plus size={12} /> New
+                      </button>
+                    )}
+                  </div>
+
+                  {isCreatingTimeframe ? (
+                    <div className="flex items-center gap-2 p-1 bg-card md:bg-canvas border border-blue-500 rounded-[18px] min-h-11 md:h-10">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={newTimeframeName}
+                        onChange={(e) => setNewTimeframeName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); handleCreateTimeframe(); }
+                          if (e.key === 'Escape') { setIsCreatingTimeframe(false); setNewTimeframeName(''); }
+                        }}
+                        placeholder="e.g. 1m, 5m, 1h..."
+                        className="w-full h-full bg-transparent px-3 text-xs text-text-main outline-none font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateTimeframe}
+                        disabled={isSavingTimeframe || !newTimeframeName.trim()}
+                        className="h-full px-3 rounded-[14px] bg-blue-500 border border-blue-500 text-white flex items-center justify-center cursor-pointer hover:bg-blue-600 disabled:opacity-50 shrink-0"
+                      >
+                        {isSavingTimeframe ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsCreatingTimeframe(false); setNewTimeframeName(''); }}
+                        className="h-full px-2.5 rounded-[14px] bg-canvas border border-border-card text-text-muted hover:text-text-main cursor-pointer flex items-center justify-center shrink-0"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={timeframe}
+                      onChange={setTimeframe}
+                      options={timeframeOptions}
+                      placeholder={allTimeframeNames.length === 0 ? "Add timeframe via + New..." : "Select Timeframe..."}
+                    />
+                  )}
+                </div>
+
+                {/* Row 5: Execution Mistake (Full width / span-2) */}
+                <div className="space-y-2 md:col-span-2">
                   <div className="flex items-center justify-between h-5">
                     <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted flex items-center gap-2">
                       <AlertTriangle size={12} className="text-amber-500" />
@@ -825,16 +969,16 @@ export function TradeModal({
                       />
                       <button
                         type="button"
-                        onClick={() => handleCreateMistake()}
+                        onClick={handleCreateMistake}
                         disabled={isSavingMistake || !newMistakeName.trim()}
-                        className="h-full px-3 rounded-[14px] bg-blue-500 text-white flex items-center justify-center cursor-pointer hover:bg-blue-600 disabled:opacity-50 shrink-0"
+                        className="h-full px-3 rounded-[14px] bg-blue-500 border border-blue-500 text-white flex items-center justify-center cursor-pointer hover:bg-blue-600 disabled:opacity-50 shrink-0"
                       >
                         {isSavingMistake ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                       </button>
                       <button
                         type="button"
                         onClick={() => { setIsCreatingMistake(false); setNewMistakeName(''); }}
-                        className="h-full px-2 rounded-[14px] text-text-muted hover:text-text-main cursor-pointer flex items-center justify-center shrink-0"
+                        className="h-full px-2.5 rounded-[14px] bg-canvas border border-border-card text-text-muted hover:text-text-main cursor-pointer flex items-center justify-center shrink-0"
                       >
                         <X size={14} />
                       </button>

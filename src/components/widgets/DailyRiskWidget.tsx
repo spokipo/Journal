@@ -89,7 +89,7 @@ export function DailyRiskWidget({
       {size === 'small' ? (
         <WidgetCard size={size} className="justify-between text-left">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+            <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
               <Activity size={14} className={statusColor} />
               <span>Daily Risk</span>
             </div>
@@ -262,7 +262,7 @@ export function DailyRiskWidget({
             <button
               type="button"
               onClick={handleSave}
-              className="w-full h-9 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full h-9 rounded-full bg-blue-500 border border-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-xs active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Check size={14} />
               <span>Apply Limit</span>

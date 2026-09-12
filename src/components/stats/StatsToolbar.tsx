@@ -4,6 +4,7 @@ import {
   Calendar, 
   Search,
   Wallet,
+  Timer,
   X, 
   RotateCcw,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import type { TradingAccount, FilterState, PeriodType } from '../../lib/statsEng
 interface StatsToolbarProps {
   filters: FilterState;
   accounts: TradingAccount[];
+  availableTimeframes?: string[];
   metricMode: 'dual' | 'r' | 'amount';
   onMetricModeChange: (mode: 'dual' | 'r' | 'amount') => void;
   onFilterChange: (nextFilters: FilterState) => void;
@@ -33,6 +35,7 @@ const PERIOD_OPTIONS: { id: PeriodType; label: string }[] = [
 export function StatsToolbar({
   filters,
   accounts,
+  availableTimeframes = [],
   metricMode,
   onMetricModeChange,
   onFilterChange,
@@ -70,6 +73,18 @@ export function StatsToolbar({
     return opts;
   }, [accounts]);
 
+  const timeframeSelectOptions = useMemo<SelectOption[]>(() => {
+    const opts: SelectOption[] = [
+      { value: 'all', label: 'All Timeframes' },
+    ];
+    if (availableTimeframes && availableTimeframes.length > 0) {
+      availableTimeframes.forEach((tf) => {
+        opts.push({ value: tf, label: tf });
+      });
+    }
+    return opts;
+  }, [availableTimeframes]);
+
   const mobilePeriodOptions = useMemo<SelectOption[]>(() => {
     return PERIOD_OPTIONS.map((p) => ({
       value: p.id,
@@ -84,10 +99,11 @@ export function StatsToolbar({
   const hasActiveFilters =
     filters.period !== 'all' ||
     Boolean(filters.searchQuery) ||
-    (filters.accountId && filters.accountId !== 'all');
+    (filters.accountId && filters.accountId !== 'all') ||
+    (filters.timeframe && filters.timeframe !== 'all');
 
   return (
-    <div className="space-y-2.5 w-full">
+    <div className="space-y-3 w-full">
       {/* ==================================================================== */}
       {/* DESKTOP TOOLBAR (md and above): Flat row of L1 controls, no h-scroll */}
       {/* ==================================================================== */}
@@ -169,6 +185,20 @@ export function StatsToolbar({
             />
           </div>
 
+          {/* Timeframe Select */}
+          {timeframeSelectOptions.length > 1 && (
+            <div className="shrink-0 w-36">
+              <Select
+                size="sm"
+                icon={Timer}
+                align="right"
+                value={filters.timeframe || 'all'}
+                onChange={(val) => onFilterChange({ ...filters, timeframe: val })}
+                options={timeframeSelectOptions}
+              />
+            </div>
+          )}
+
           {/* Account Select */}
           <div className="shrink-0 w-44">
             <Select
@@ -186,19 +216,22 @@ export function StatsToolbar({
       {/* ==================================================================== */}
       {/* MOBILE TOOLBAR (< md): Strict §9 compliance (No horizontal scroll, >= 44px) */}
       {/* ==================================================================== */}
-      <div className="flex md:hidden flex-col gap-2.5 w-full">
+      <div className="flex md:hidden flex-col gap-3 w-full">
         {/* Row 1: Period Select & Account Select (h-11) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+        <div className={cn(
+          "grid gap-2 w-full",
+          timeframeSelectOptions.length > 1 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"
+        )}>
           <div>
             <Select
               size="md"
               icon={Calendar}
               value={filters.period}
-              onChange={(val) => handlePeriodSelect(val as PeriodType)}
+              onChange={(val) => handlePeriodSelect(val as any)}
               options={mobilePeriodOptions}
+              className="w-full"
             />
           </div>
-
           <div>
             <Select
               size="md"
@@ -206,14 +239,26 @@ export function StatsToolbar({
               value={filters.accountId}
               onChange={(val) => onFilterChange({ ...filters, accountId: val })}
               options={accountSelectOptions}
+              className="w-full"
             />
           </div>
+          {timeframeSelectOptions.length > 1 && (
+            <div>
+              <Select
+                size="md"
+                icon={Timer}
+                value={filters.timeframe || 'all'}
+                onChange={(val) => onFilterChange({ ...filters, timeframe: val })}
+                options={timeframeSelectOptions}
+                className="w-full"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Row 2: Search input + Unit toggle (Каждый элемент ровно h-11, форма rounded-full) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-          {/* Search Input */}
-          <div className="relative w-full">
+        {/* Row 2: Search Input & Unit Select (h-11) */}
+        <div className="flex items-center gap-2 w-full">
+          <div className="relative flex-1 min-w-0">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
             <input
               type="text"
@@ -224,35 +269,18 @@ export function StatsToolbar({
             />
           </div>
 
-          {/* Unit 3-Mode Toggle on Mobile (Full 44px touch targets, rounded-full, animated indicator) */}
-          <div className="grid grid-cols-3 gap-1 bg-card border border-border-card rounded-full p-1 h-11 items-center">
-            {[
-              { id: 'dual', label: 'Dual' },
-              { id: 'r', label: 'R' },
-              { id: 'amount', label: '$' },
-            ].map((mode) => {
-              const isActive = metricMode === mode.id;
-              return (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() => onMetricModeChange(mode.id as any)}
-                  className={cn(
-                    "relative h-9 px-2 text-xs font-semibold rounded-full transition-colors select-none cursor-pointer flex items-center justify-center",
-                    isActive ? "text-blue-500" : "text-text-muted hover:text-text-main"
-                  )}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="stats-toolbar-metric-mode-mobile"
-                      className="absolute inset-0 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-xs"
-                      transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                    />
-                  )}
-                  <span className="relative z-10">{mode.label}</span>
-                </button>
-              );
-            })}
+          <div className="shrink-0 w-36">
+            <Select
+              size="md"
+              align="right"
+              value={metricMode}
+              onChange={(val) => onMetricModeChange(val as any)}
+              options={[
+                { value: 'dual', label: 'Dual Mode' },
+                { value: 'r', label: 'R-Multiple' },
+                { value: 'amount', label: 'Monetary ($)' },
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -261,14 +289,14 @@ export function StatsToolbar({
       {/* Active Filter Chips: flex-wrap without horizontal overflow per §9     */}
       {/* ==================================================================== */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <span className="text-[0.6875rem] uppercase font-semibold text-text-muted mr-1">
             Active:
           </span>
 
           {/* Period Chip */}
           {filters.period !== 'all' && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
               <span>Period: {filters.period === 'custom' ? `${filters.customStartDate} → ${filters.customEndDate}` : filters.period}</span>
               <button
                 type="button"
@@ -281,9 +309,24 @@ export function StatsToolbar({
             </span>
           )}
 
+          {/* Timeframe Chip */}
+          {filters.timeframe && filters.timeframe !== 'all' && (
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
+              <span>TF: {filters.timeframe}</span>
+              <button
+                type="button"
+                onClick={() => onFilterChange({ ...filters, timeframe: 'all' })}
+                className="hover:text-rose-500 transition-colors cursor-pointer"
+                aria-label="Remove timeframe filter"
+              >
+                <X size={13} />
+              </button>
+            </span>
+          )}
+
           {/* Account Chip */}
           {filters.accountId && filters.accountId !== 'all' && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
               <span>Account: {activeAccount ? activeAccount.name : filters.accountId}</span>
               <button
                 type="button"
@@ -298,7 +341,7 @@ export function StatsToolbar({
 
           {/* Search Query Chip */}
           {filters.searchQuery && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border-card text-xs text-text-main">
               <span>Ticker: "{filters.searchQuery}"</span>
               <button
                 type="button"
@@ -315,10 +358,10 @@ export function StatsToolbar({
           <button
             type="button"
             onClick={onResetFilters}
-            className="text-xs text-blue-500 hover:underline flex items-center gap-1 ml-1 cursor-pointer min-h-8"
+            className="h-8 px-3 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-2 ml-1 cursor-pointer active:scale-95 transition-all"
           >
             <RotateCcw size={12} />
-            Reset all
+            <span>Reset all</span>
           </button>
         </div>
       )}

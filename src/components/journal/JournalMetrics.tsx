@@ -60,7 +60,7 @@ export function JournalMetrics({
               )}
               title="Нажмите для переключения: общая статистика / подсчет TP, BE, SL"
             >
-              <div className="flex items-center gap-1.5 min-w-0 mr-2">
+              <div className="flex items-center gap-2 min-w-0 mr-2">
                 <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-muted group-hover:text-text-main truncate transition-colors">
                   Trades
                 </span>

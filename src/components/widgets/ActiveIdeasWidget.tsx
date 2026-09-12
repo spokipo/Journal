@@ -36,7 +36,7 @@ export function ActiveIdeasWidget({ size, ideas = [], onOpenTradeModal }: Widget
     if (!latestIdea) {
       return (
         <WidgetCard size={size} className="justify-between text-left">
-          <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+          <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
             <Lightbulb size={14} className="text-amber-500 shrink-0" />
             <span>Active Radar</span>
           </div>
@@ -62,7 +62,7 @@ export function ActiveIdeasWidget({ size, ideas = [], onOpenTradeModal }: Widget
     return (
       <WidgetCard size={size} className="justify-between text-left">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+          <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
             <Lightbulb size={14} className="text-amber-500 shrink-0" />
             <span>Active Radar</span>
           </div>
@@ -102,7 +102,7 @@ export function ActiveIdeasWidget({ size, ideas = [], onOpenTradeModal }: Widget
             e.stopPropagation();
             onOpenTradeModal?.(latestIdea);
           }}
-          className="w-full h-7 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all cursor-pointer"
+          className="w-full h-7 rounded-full bg-blue-500 border border-blue-500 hover:bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all cursor-pointer"
         >
           <Plus size={13} />
           <span>Execute Trade</span>
@@ -131,7 +131,7 @@ export function ActiveIdeasWidget({ size, ideas = [], onOpenTradeModal }: Widget
                   key={idea.id || idea.symbol}
                   className="flex items-center justify-between px-3 py-2 rounded-[14px] bg-canvas border border-border-card hover:border-blue-500/40 transition-colors gap-3"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div className={cn(
                       "w-7 h-7 rounded-[10px] flex items-center justify-center shrink-0 font-bold text-xs border",
                       isLong 
@@ -208,9 +208,9 @@ export function ActiveIdeasWidget({ size, ideas = [], onOpenTradeModal }: Widget
                 key={idea.id || idea.symbol}
                 className="flex items-center justify-between px-3 py-2.5 rounded-[14px] bg-canvas border border-border-card hover:border-blue-500/40 transition-colors gap-3"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className={cn(
-                    "w-8 h-8 rounded-[12px] flex items-center justify-center shrink-0 font-bold text-xs border",
+                    "w-8 h-8 rounded-[14px] flex items-center justify-center shrink-0 font-bold text-xs border",
                     isLong 
                       ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
                       : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"

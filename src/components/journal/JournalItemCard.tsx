@@ -95,8 +95,8 @@ export function JournalItemCard({
         : null
     : null;
 
-  // Stagger-анимация по правилу §3.1 (delay = index * 0.03s, capped на 0.24s)
-  const staggerDelay = Math.min(index * 0.03, 0.24);
+  // Stagger-анимация по правилу §3.1 (delay = (index % 12) * 0.035s, capped на 0.24s)
+  const staggerDelay = Math.min((index % 12) * 0.035, 0.24);
 
   // ==========================================
   // 1. LIST VIEW
@@ -105,8 +105,8 @@ export function JournalItemCard({
     return (
       <motion.div
         key={item.id}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 8, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.18, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
         onClick={onClick}
         onKeyDown={(e) => {
@@ -125,7 +125,7 @@ export function JournalItemCard({
         {/* Desktop List Row: L1 Data row h-16 rounded-[18px] (§2, §3 Type C) */}
         <div className="hidden md:flex items-center justify-between gap-4 h-16 px-4 w-full">
           {/* Column 1: Identity (w-72 shrink-0) */}
-          <div className="flex items-center gap-2.5 w-72 shrink-0">
+          <div className="flex items-center gap-3 w-72 shrink-0">
             {/* L0 Icon-badge (§2, §4) */}
             <div
               className={cn(
@@ -150,6 +150,12 @@ export function JournalItemCard({
               </span>
             )}
 
+            {isTrade && trade.timeframe && (
+              <span className="px-2 py-0.5 rounded-[14px] bg-canvas text-text-muted border border-border-card text-[0.6875rem] font-mono font-medium shrink-0">
+                {trade.timeframe}
+              </span>
+            )}
+
             {isTrade && trade.idea_id && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[14px] bg-amber-500/10 text-amber-500 text-[0.6875rem] font-semibold shrink-0" title="Created from Watchlist Idea">
                 <Lightbulb size={12} />
@@ -159,7 +165,7 @@ export function JournalItemCard({
           </div>
 
           {/* Column 2: Context / Meta & Notes (flex-1 min-w-0) */}
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             <span className="font-mono tabular-nums text-[0.6875rem] text-text-muted shrink-0 w-20">
               {new Date(date).toLocaleDateString()}
             </span>
@@ -184,21 +190,23 @@ export function JournalItemCard({
             )}
           </div>
 
-          {/* Column 3: Parameters / Timeframe (w-28 shrink-0) */}
+          {/* Column 3: Parameters / Timeframe (w-24 shrink-0) */}
           {isTrade ? (
-            <div className="w-28 shrink-0 flex flex-col justify-center gap-0.5">
+            <div className="w-24 shrink-0 flex flex-col justify-center gap-0.5">
               <div className="flex items-baseline justify-between text-xs">
                 <span className="text-[0.6875rem] text-text-muted font-normal">Risk</span>
                 <span className="font-mono tabular-nums font-semibold text-text-main">
                   {trade.risk_percent !== null && trade.risk_percent !== undefined ? `${trade.risk_percent}%` : '—'}
                 </span>
               </div>
-              <div className="flex items-baseline justify-between text-xs">
-                <span className="text-[0.6875rem] text-text-muted font-normal">RR</span>
-                <span className="font-mono tabular-nums font-medium text-text-muted">
-                  {trade.rr ? `1:${trade.rr}` : '—'}
-                </span>
-              </div>
+              {trade.timeframe && (
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-[0.6875rem] text-text-muted font-normal">TF</span>
+                  <span className="font-mono tabular-nums font-semibold text-text-muted">
+                    {trade.timeframe}
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="w-28 shrink-0 flex flex-col justify-center gap-0.5">
@@ -304,12 +312,18 @@ export function JournalItemCard({
           <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">
             {/* Top row: Symbol + Session + Status vs Primary Metric */}
             <div className="flex items-center justify-between gap-2 w-full">
-              <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="text-sm font-bold text-text-main shrink-0">{symbol}</span>
 
                 {session && (
                   <span className="px-1.5 py-0.5 rounded-[14px] bg-canvas text-text-muted border border-border-card text-[0.6875rem] font-mono uppercase shrink-0">
                     {SESSION_LABELS[session] || session}
+                  </span>
+                )}
+
+                {isTrade && trade.timeframe && (
+                  <span className="px-1.5 py-0.5 rounded-[14px] bg-canvas text-text-muted border border-border-card text-[0.6875rem] font-mono shrink-0">
+                    {trade.timeframe}
                   </span>
                 )}
 
@@ -348,7 +362,7 @@ export function JournalItemCard({
 
             {/* Bottom row: Date + Setup/Notes vs Risk / Status */}
             <div className="flex items-center justify-between gap-2 text-[0.6875rem] text-text-muted w-full">
-              <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <div className="flex items-center gap-2 min-w-0 truncate">
                 <span className="font-mono tabular-nums shrink-0">{new Date(date).toLocaleDateString()}</span>
                 {isTrade && trade.setup_id && playbooks[trade.setup_id] ? (
                   <>
@@ -363,12 +377,10 @@ export function JournalItemCard({
                 ) : null}
               </div>
 
-              {/* Bottom row right: Risk/RR or Idea State */}
+              {/* Bottom row right: Risk or Idea State */}
               {isTrade ? (
                 <div className="flex items-center gap-1 text-[0.6875rem] text-text-muted shrink-0">
                   <span>Risk <strong className="font-mono tabular-nums font-medium text-text-main">{trade.risk_percent !== null && trade.risk_percent !== undefined ? `${trade.risk_percent}%` : '—'}</strong></span>
-                  <span className="text-border-card">•</span>
-                  <span>RR <strong className="font-mono tabular-nums font-medium text-text-main">{trade.rr ? `1:${trade.rr}` : '—'}</strong></span>
                 </div>
               ) : (
                 <span className="text-[0.6875rem] text-text-muted font-medium shrink-0">
@@ -407,14 +419,14 @@ export function JournalItemCard({
   }
 
   // ==========================================
-  // 2. GRID VIEW (WidgetKit 2:1 systemMedium logic)
+  // 2. GRID VIEW (Compact L2 Card, 3-column responsive)
   // ==========================================
   return (
     <motion.div
       key={item.id}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.2, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -425,29 +437,29 @@ export function JournalItemCard({
       tabIndex={0}
       role="button"
       className={cn(
-        "bg-card border border-border-card transition-colors cursor-pointer flex p-4 sm:p-5 rounded-[26px] flex-col justify-between h-full min-h-[190px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+        "group bg-card border border-border-card transition-all cursor-pointer flex p-3.5 sm:p-4 rounded-[26px] flex-col justify-between h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 shadow-xs",
         isTrade ? "hover:border-blue-500/50" : "hover:border-amber-500/50"
       )}
     >
       {/* 1. Header (Identity & Primary Metric) */}
-      <div className="flex items-center justify-between gap-2.5 w-full pb-3 border-b border-border-card/60">
+      <div className="flex items-center justify-between gap-2 w-full pb-2.5 border-b border-border-card/60">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {/* Direction badge */}
+          {/* Direction badge: L0 rounded-[14px] 32x32 */}
           <div
             className={cn(
-              "w-9 h-9 rounded-[14px] flex items-center justify-center shrink-0",
+              "w-8 h-8 rounded-[14px] flex items-center justify-center shrink-0",
               isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
             )}
           >
-            {isLong ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+            {isLong ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
           </div>
 
-          <span className="text-sm sm:text-base font-bold tracking-tight text-text-main truncate shrink-0">
+          <span className="text-sm font-bold tracking-tight text-text-main truncate shrink-0">
             {symbol}
           </span>
 
           {session && (
-            <span className="px-2 py-0.5 rounded-[14px] bg-canvas text-text-muted border border-border-card text-[0.6875rem] font-mono font-semibold uppercase shrink-0">
+            <span className="px-1.5 py-0.5 rounded-[10px] bg-canvas text-text-muted border border-border-card text-[0.6875rem] font-mono font-medium uppercase shrink-0">
               {SESSION_LABELS[session] || session}
             </span>
           )}
@@ -457,8 +469,8 @@ export function JournalItemCard({
           </span>
 
           {isTrade && trade.idea_id && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[14px] bg-amber-500/10 text-amber-500 text-[0.6875rem] font-semibold shrink-0" title="Created from Watchlist Idea">
-              <Lightbulb size={12} />
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[10px] bg-amber-500/10 text-amber-500 text-[0.6875rem] font-semibold shrink-0" title="Created from Watchlist Idea">
+              <Lightbulb size={11} />
               <span className="hidden sm:inline">Idea</span>
             </span>
           )}
@@ -469,7 +481,7 @@ export function JournalItemCard({
           {isTrade ? (
             <div className="flex flex-col items-end leading-tight">
               <span className={cn(
-                "text-sm sm:text-base font-bold font-mono tabular-nums",
+                "text-sm font-bold font-mono tabular-nums",
                 pnlR > 0 ? "text-emerald-500" : pnlR < 0 ? "text-rose-500" : "text-text-muted"
               )}>
                 {pnlR > 0 ? `+${pnlR} R` : `${pnlR} R`}
@@ -500,34 +512,34 @@ export function JournalItemCard({
         </div>
       </div>
 
-      {/* 2. Body (Supporting content: Tags, Notes, Screenshot) */}
-      <div className="py-3 flex-1 flex flex-col justify-between gap-2.5 w-full">
+      {/* 2. Body (Tags, Notes, Screenshot preview) */}
+      <div className="py-2.5 flex-1 flex flex-col justify-between gap-2 w-full">
         {/* Tags Row */}
         {isTrade && (trade.setup_id || (trade.mistake_ids && trade.mistake_ids.length > 0)) ? (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             {trade.setup_id && playbooks[trade.setup_id] && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[14px] bg-blue-500/10 text-blue-500 text-[0.6875rem] font-medium truncate max-w-[150px]">
-                <BookMarked size={12} />
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[10px] bg-blue-500/10 text-blue-500 text-[0.6875rem] font-medium truncate max-w-[130px]">
+                <BookMarked size={11} />
                 <span className="truncate">{playbooks[trade.setup_id]}</span>
               </span>
             )}
             {trade.mistake_ids && trade.mistake_ids.map((id) => mistakes[id] ? (
-              <span key={id} className="px-2 py-0.5 rounded-[14px] bg-rose-500/10 text-rose-500 text-[0.6875rem] font-medium truncate max-w-[120px]">
+              <span key={id} className="px-1.5 py-0.5 rounded-[10px] bg-rose-500/10 text-rose-500 text-[0.6875rem] font-medium truncate max-w-[100px]">
                 {mistakes[id]}
               </span>
             ) : null)}
           </div>
         ) : null}
 
-        {/* Content & Thumbnail Split */}
+        {/* Notes & Screenshot Split */}
         <div className="flex items-start justify-between gap-3 w-full">
-          <div className="flex-1 min-w-0 min-h-[2.5rem] flex items-center">
+          <div className="flex-1 min-w-0">
             {notes ? (
               <p className="text-xs text-text-muted line-clamp-2 leading-relaxed font-normal">
                 {notes}
               </p>
             ) : (
-              <p className="text-xs text-text-muted/40 italic font-normal">
+              <p className="text-xs text-text-muted/30 italic font-normal">
                 No notes
               </p>
             )}
@@ -539,7 +551,7 @@ export function JournalItemCard({
                 e.stopPropagation();
                 onImageClick(screenshots, 0, `${symbol} Screenshots`);
               }}
-              className="relative w-16 h-12 sm:h-14 rounded-[14px] overflow-hidden border border-border-card bg-canvas shrink-0 group/img cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="relative w-12 h-9 sm:w-14 sm:h-10 rounded-[14px] overflow-hidden border border-border-card bg-canvas shrink-0 group/img cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               <img
                 src={screenshots[0]}
@@ -547,42 +559,36 @@ export function JournalItemCard({
                 className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
               />
               {screenshots.length > 1 && (
-                <span className="absolute bottom-1 right-1 px-1 py-0.5 rounded-[6px] bg-black/75 text-white text-[0.6875rem] font-mono tabular-nums flex items-center gap-0.5">
-                  <ImageIcon size={10} />
-                  {screenshots.length}
+                <span className="absolute bottom-0.5 right-0.5 px-1 rounded-[4px] bg-black/75 text-white text-[0.6875rem] font-mono tabular-nums">
+                  +{screenshots.length - 1}
                 </span>
               )}
-              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
-                <ImageIcon size={14} />
-              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* 3. Footer (Parameters & Date) */}
-      <div className="pt-2.5 border-t border-border-card/60 w-full flex items-center justify-between text-[0.6875rem]">
+      {/* 3. Footer (Parameters & Date) - RR 1:... completely removed */}
+      <div className="pt-2 border-t border-border-card/60 w-full flex items-center justify-between text-[0.6875rem]">
         {isTrade ? (
           <div className="flex items-center gap-2 text-text-muted">
             <span>Risk <strong className="font-mono tabular-nums font-semibold text-text-main">{trade.risk_percent !== null && trade.risk_percent !== undefined ? `${trade.risk_percent}%` : '—'}</strong></span>
-            <span className="text-border-card/80">•</span>
-            <span>RR <strong className="font-mono tabular-nums font-semibold text-text-main">{trade.rr ? `1:${trade.rr}` : '—'}</strong></span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-text-muted">
+          <div className="flex items-center gap-2 text-text-muted">
             {session ? (
-              <span className="font-mono text-text-muted">{SESSION_LABELS[session] || session} Session</span>
+              <span className="font-mono text-text-muted">{SESSION_LABELS[session] || session}</span>
             ) : idea.expires_at ? (
               <span className="font-mono text-text-muted">Expires {new Date(idea.expires_at).toLocaleDateString()}</span>
             ) : (
-              <span className="text-text-muted">Idea Thesis</span>
+              <span className="text-text-muted">Thesis</span>
             )}
           </div>
         )}
 
-        <div className="font-mono tabular-nums text-text-muted">
+        <span className="font-mono tabular-nums text-text-muted">
           {new Date(date).toLocaleDateString()}
-        </div>
+        </span>
       </div>
     </motion.div>
   );

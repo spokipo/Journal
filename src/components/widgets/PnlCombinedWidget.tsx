@@ -29,7 +29,7 @@ export function PnlCombinedWidget({
     return (
       <WidgetCard size={size} className="justify-between text-left">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
+          <div className="flex items-center gap-2 text-[0.6875rem] uppercase tracking-wide text-text-muted font-semibold">
             {isPositive ? (
               <TrendingUp size={14} className="text-emerald-500 shrink-0" />
             ) : (

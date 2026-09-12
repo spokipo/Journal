@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   RotateCcw,
   SlidersHorizontal,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -58,10 +59,10 @@ function PlaybookSkeleton({ viewMode }: { viewMode: ViewMode }) {
         {Array.from({ length: 6 }).map((_, idx) => (
           <div
             key={idx}
-            className="bg-card border border-border-card rounded-[26px] p-4 min-h-[180px] flex flex-col justify-between"
+            className="bg-card border border-border-card rounded-[26px] p-4 flex flex-col justify-between"
           >
             <div className="flex items-center justify-between pb-3 border-b border-border-card/60">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-[14px] bg-canvas" />
                 <div className="w-24 h-4 rounded-[14px] bg-canvas" />
               </div>
@@ -90,7 +91,7 @@ function PlaybookSkeleton({ viewMode }: { viewMode: ViewMode }) {
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[14px] bg-canvas" />
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="w-28 h-4 rounded-[14px] bg-canvas" />
               <div className="w-16 h-3 rounded-[14px] bg-canvas" />
             </div>
@@ -114,6 +115,12 @@ export function PlaybookView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('winrate_desc');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [visibleCount, setVisibleCount] = useState(12);
+
+  // Reset pagination on filter/sort/search change (§3 Type C)
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [searchQuery, statusFilter, sortBy, viewMode]);
 
   // Mobile anchored popover
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -356,6 +363,10 @@ export function PlaybookView() {
       });
   }, [setups, searchQuery, statusFilter, sortBy]);
 
+  const paginatedSetups = useMemo(() => {
+    return filteredSetups.slice(0, visibleCount);
+  }, [filteredSetups, visibleCount]);
+
   const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
 
   const getWinrateColor = (wr: number) => {
@@ -368,21 +379,21 @@ export function PlaybookView() {
   const renderSetupItem = (setup: PlaybookSetup, index: number) => {
     const hasScreenshots = Boolean(setup.screenshots && setup.screenshots.length > 0);
     const screenshots = setup.screenshots || [];
-    const staggerDelay = Math.min(index * 0.03, 0.24);
+    const staggerDelay = Math.min((index % 12) * 0.035, 0.24);
 
     if (viewMode === 'list') {
       return (
         <motion.div
           key={setup.id}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, y: 10, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.2, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
           onClick={() => handleOpenEditModal(setup)}
           className="bg-card border border-border-card transition-colors cursor-pointer rounded-[18px] hover:border-blue-500/50"
         >
           {/* Desktop List Row (L1 Data row: h-16, rounded-[18px]) */}
           <div className="hidden md:flex items-center justify-between gap-4 h-16 px-4 w-full">
-            <div className="flex items-center gap-2.5 w-64 shrink-0">
+            <div className="flex items-center gap-3 w-64 shrink-0">
               <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
                 <BookMarked size={16} />
               </div>
@@ -401,7 +412,7 @@ export function PlaybookView() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <span className="text-xs text-text-muted truncate max-w-[320px]">
                 {setup.description || 'No strategy rules configured'}
               </span>
@@ -457,14 +468,14 @@ export function PlaybookView() {
           </div>
 
           {/* Mobile List Row */}
-          <div className="flex md:hidden items-center justify-between gap-2.5 w-full px-3 h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]">
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="flex md:hidden items-center justify-between gap-3 w-full px-3 h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
                 <BookMarked size={16} />
               </div>
 
               <div className="min-w-0 flex-1 space-y-0.5">
-                <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                   <span className="text-sm font-bold text-text-main shrink-0 truncate max-w-[140px]">{setup.title}</span>
                   <span
                     className={cn(
@@ -478,7 +489,7 @@ export function PlaybookView() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-[0.6875rem] text-text-muted truncate">
+                <div className="flex items-center gap-2 text-[0.6875rem] text-text-muted truncate">
                   <span className="truncate">{setup.description || 'No strategy rules'}</span>
                 </div>
               </div>
@@ -523,19 +534,19 @@ export function PlaybookView() {
       );
     }
 
-    // 2. Grid View (L2 Card: rounded-[26px], p-4 / p-5)
+    // 2. Grid View (L2 Card: rounded-[26px], p-3.5 sm:p-4 §3 Type C)
     return (
       <motion.div
         key={setup.id}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.2, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
         onClick={() => handleOpenEditModal(setup)}
-        className="bg-card border border-border-card transition-colors cursor-pointer flex p-5 rounded-[26px] flex-col justify-between min-h-[180px] h-full hover:border-blue-500/50 shadow-xs"
+        className="bg-card border border-border-card transition-colors cursor-pointer flex p-3.5 sm:p-4 rounded-[26px] flex-col justify-between h-full hover:border-blue-500/50 shadow-xs"
       >
         {/* ЯРУС 1: ШАПКА ТИКЕТА */}
         <div className="flex items-center justify-between gap-3 w-full pb-3 border-b border-border-card/60">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-9 h-9 rounded-[14px] bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
               <BookMarked size={16} />
             </div>
@@ -587,7 +598,7 @@ export function PlaybookView() {
                 e.stopPropagation();
                 openImageViewer(screenshots, 0, `${setup.title} Charts`);
               }}
-              className="relative w-16 h-14 rounded-[14px] overflow-hidden border border-border-card bg-canvas shrink-0 group/img cursor-pointer shadow-xs"
+              className="relative w-12 h-9 sm:w-14 sm:h-10 rounded-[14px] overflow-hidden border border-border-card bg-canvas shrink-0 group/img cursor-pointer shadow-xs"
             >
               <img
                 src={screenshots[0]}
@@ -595,7 +606,7 @@ export function PlaybookView() {
                 className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
               />
               {screenshots.length > 1 && (
-                <span className="absolute bottom-1 right-1 px-1 py-0.5 rounded-[6px] bg-black/75 text-white text-[0.6875rem] font-mono tabular-nums flex items-center gap-0.5">
+                <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded-[4px] bg-black/75 text-white text-[0.6875rem] font-mono tabular-nums flex items-center gap-0.5">
                   <ImageIcon size={9} />
                   {screenshots.length}
                 </span>
@@ -605,7 +616,7 @@ export function PlaybookView() {
               </div>
             </div>
           ) : (
-            <div className="w-16 h-14 rounded-[14px] border border-dashed border-border-card/40 flex items-center justify-center text-text-muted/20 shrink-0">
+            <div className="w-12 h-9 sm:w-14 sm:h-10 rounded-[14px] border border-dashed border-border-card/40 flex items-center justify-center text-text-muted/20 shrink-0">
               <ImageIcon size={14} />
             </div>
           )}
@@ -613,7 +624,7 @@ export function PlaybookView() {
 
         {/* ЯРУС 3: ФУТЕР ТИКЕТА */}
         <div className="pt-2 border-t border-border-card/60 w-full flex items-center justify-between text-[0.6875rem]">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 text-text-muted">
               <span>Trades</span>
               <span className="font-mono tabular-nums font-semibold text-text-main">{setup.total_trades}</span>
@@ -637,7 +648,7 @@ export function PlaybookView() {
       {/* 1. Page Header (§3 Page header) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-main">Playbook</h1>
             <span className="px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold font-mono tabular-nums bg-blue-500/10 text-blue-500">
               {isLoading ? '—' : setups.length}
@@ -709,9 +720,9 @@ export function PlaybookView() {
                 type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear search"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-canvas border border-border-card text-text-muted hover:text-text-main flex items-center justify-center cursor-pointer shadow-xs active:scale-95 transition-all"
               >
-                <X size={13} />
+                <X size={11} />
               </button>
             )}
           </div>
@@ -795,9 +806,9 @@ export function PlaybookView() {
                 type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear search"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-canvas border border-border-card text-text-muted hover:text-text-main flex items-center justify-center cursor-pointer shadow-xs active:scale-95 transition-all"
               >
-                <X size={14} />
+                <X size={12} />
               </button>
             )}
           </div>
@@ -816,7 +827,7 @@ export function PlaybookView() {
             >
               <SlidersHorizontal size={18} />
               {activeFilterCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-blue-500 text-white text-[0.625rem] font-bold flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-blue-500 text-white text-[0.6875rem] font-bold flex items-center justify-center">
                   {activeFilterCount}
                 </span>
               )}
@@ -845,7 +856,7 @@ export function PlaybookView() {
                     </button>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-2">
                     <label className="text-[0.6875rem] font-semibold text-text-muted uppercase">Status</label>
                     <Select
                       size="md"
@@ -856,7 +867,7 @@ export function PlaybookView() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-2">
                     <label className="text-[0.6875rem] font-semibold text-text-muted uppercase">Sort By</label>
                     <Select
                       size="md"
@@ -876,9 +887,9 @@ export function PlaybookView() {
                           resetFilters();
                           setIsMobileFilterOpen(false);
                         }}
-                        className="text-xs text-rose-500 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                        className="h-8 px-3 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500/20 text-xs font-semibold flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
                       >
-                        <RotateCcw size={11} />
+                        <RotateCcw size={12} />
                         <span>Reset all</span>
                       </button>
                     </div>
@@ -931,7 +942,7 @@ export function PlaybookView() {
 
         {/* Активные чипсы фильтрации */}
         {activeFilterCount > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             {statusFilter !== 'all' && (
               <div className="h-6 pl-2.5 pr-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[0.6875rem] font-medium flex items-center gap-1">
                 <span>Status: {STATUS_SELECT_OPTIONS.find((o) => o.value === statusFilter)?.label}</span>
@@ -1035,9 +1046,9 @@ export function PlaybookView() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-2 text-xs text-blue-500 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                className="mt-2 h-9 px-4 rounded-full bg-canvas border border-border-card text-text-main hover:bg-card text-xs font-semibold flex items-center gap-2 cursor-pointer active:scale-[0.98] shadow-xs transition-colors"
               >
-                <RotateCcw size={12} />
+                <RotateCcw size={14} />
                 <span>Reset all filters</span>
               </button>
             ) : (
@@ -1051,20 +1062,37 @@ export function PlaybookView() {
             )}
           </motion.div>
         ) : (
-          <motion.div
-            key={`playbook-content-${viewMode}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className={cn(
-              viewMode === 'grid'
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                : "flex flex-col space-y-3"
+          <div className="flex flex-col gap-4">
+            <motion.div
+              key={`playbook-content-${viewMode}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className={cn(
+                viewMode === 'grid'
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                  : "flex flex-col space-y-3"
+              )}
+            >
+              {paginatedSetups.map((s, idx) => renderSetupItem(s, idx))}
+            </motion.div>
+
+            {/* Load more button (§3 Type C Data list) */}
+            {filteredSetups.length > visibleCount && (
+              <div className="flex justify-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 12)}
+                  className="h-10 min-h-11 md:min-h-10 px-5 rounded-full bg-card border border-border-card text-text-main hover:bg-canvas active:scale-[0.98] text-xs font-semibold inline-flex items-center gap-2 shadow-xs cursor-pointer transition-colors"
+                >
+                  <span>Load more</span>
+                  <span className="text-text-muted font-mono">({filteredSetups.length - visibleCount})</span>
+                  <ChevronDown size={14} />
+                </button>
+              </div>
             )}
-          >
-            {filteredSetups.map((s, idx) => renderSetupItem(s, idx))}
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

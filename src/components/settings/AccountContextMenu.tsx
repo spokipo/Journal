@@ -122,7 +122,7 @@ export function AccountContextMenu({
                       setIsOpen(false);
                       onEdit();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-text-main hover:bg-canvas rounded-[14px] transition-colors cursor-pointer text-left focus-visible:outline-none focus-visible:bg-canvas"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-text-main hover:bg-canvas rounded-[14px] transition-colors cursor-pointer text-left focus-visible:outline-none focus-visible:bg-canvas"
                   >
                     <Edit size={14} className="text-text-muted" />
                     <span>Edit Account</span>
@@ -134,7 +134,7 @@ export function AccountContextMenu({
                       setIsOpen(false);
                       onDelete();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 rounded-[14px] transition-colors cursor-pointer text-left border-t border-border-card/40 mt-1 pt-2 focus-visible:outline-none focus-visible:bg-rose-500/10"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 rounded-[14px] transition-colors cursor-pointer text-left border-t border-border-card/40 mt-1 pt-2 focus-visible:outline-none focus-visible:bg-rose-500/10"
                   >
                     <Trash2 size={14} className="text-rose-500" />
                     <span>Delete Account</span>
