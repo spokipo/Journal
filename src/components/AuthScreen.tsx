@@ -4,6 +4,7 @@ import { Mail, Lock, User, Sun, Moon, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useTheme } from '../lib/useTheme';
 import { useLocation } from 'wouter';
+import { cn } from '../lib/utils';
 
 type AuthMode = 'login' | 'signup';
 

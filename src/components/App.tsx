@@ -68,13 +68,11 @@ export function App() {
   const isLoginPage = location === '/login' || location.startsWith('/login');
 
   // Auth guarding
-  if (!isAuthLoading) {
-    if (!isAuthenticated && !isLoginPage) {
-      return <Redirect to="/login" />;
-    }
-    if (isAuthenticated && isLoginPage) {
-      return <Redirect to="/" />;
-    }
+  if (!isAuthenticated && !isLoginPage) {
+    return <Redirect to="/login" />;
+  }
+  if (!isAuthLoading && isAuthenticated && isLoginPage) {
+    return <Redirect to="/" />;
   }
 
   const showShell = !isLoginPage && isAuthenticated;
