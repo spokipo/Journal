@@ -113,7 +113,20 @@ export function StatsView() {
   // Filter & Metric Mode State
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
-  const [metricMode, setMetricMode] = useState<'dual' | 'r' | 'amount'>('dual');
+  const [metricMode, setMetricMode] = useState<'dual' | 'r' | 'amount'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('stats_metric_mode');
+      if (saved === 'dual' || saved === 'r' || saved === 'amount') return saved;
+    }
+    return 'dual';
+  });
+
+  const handleMetricModeChange = (mode: 'dual' | 'r' | 'amount') => {
+    setMetricMode(mode);
+    try {
+      localStorage.setItem('stats_metric_mode', mode);
+    } catch (e) {}
+  };
 
   // Trade Modal State
   const [selectedTrade, setSelectedTrade] = useState<RawTrade | null>(null);
@@ -308,7 +321,7 @@ export function StatsView() {
         accounts={accounts}
         availableTimeframes={availableTimeframes}
         metricMode={metricMode}
-        onMetricModeChange={setMetricMode}
+        onMetricModeChange={handleMetricModeChange}
         onFilterChange={setFilters}
         onResetFilters={handleResetFilters}
       />

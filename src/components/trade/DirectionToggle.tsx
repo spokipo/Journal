@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -35,17 +34,12 @@ export function DirectionToggle({
         disabled={disabled}
         onClick={() => onChange(longValue)}
         className={cn(
-          "relative z-10 h-full rounded-full flex items-center justify-center gap-2 text-xs font-semibold transition-colors cursor-pointer select-none disabled:opacity-50",
-          isLong ? "text-white" : "text-text-muted hover:text-text-main"
+          "relative h-full rounded-full flex items-center justify-center gap-2 text-xs font-semibold transition-all duration-150 cursor-pointer select-none disabled:opacity-50",
+          isLong
+            ? "bg-emerald-500 text-white shadow-xs"
+            : "text-text-muted hover:text-text-main"
         )}
       >
-        {isLong && (
-          <motion.div
-            layoutId={`${namespace}-direction-pill`}
-            transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-            className="absolute inset-0 bg-emerald-500 rounded-full shadow-sm -z-10"
-          />
-        )}
         <TrendingUp size={14} />
         <span>{longLabel}</span>
       </button>
@@ -55,17 +49,12 @@ export function DirectionToggle({
         disabled={disabled}
         onClick={() => onChange(shortValue)}
         className={cn(
-          "relative z-10 h-full rounded-full flex items-center justify-center gap-2 text-xs font-semibold transition-colors cursor-pointer select-none disabled:opacity-50",
-          isShort ? "text-white" : "text-text-muted hover:text-text-main"
+          "relative h-full rounded-full flex items-center justify-center gap-2 text-xs font-semibold transition-all duration-150 cursor-pointer select-none disabled:opacity-50",
+          isShort
+            ? "bg-rose-500 text-white shadow-xs"
+            : "text-text-muted hover:text-text-main"
         )}
       >
-        {isShort && (
-          <motion.div
-            layoutId={`${namespace}-direction-pill`}
-            transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-            className="absolute inset-0 bg-rose-500 rounded-full shadow-sm -z-10"
-          />
-        )}
         <TrendingDown size={14} />
         <span>{shortLabel}</span>
       </button>

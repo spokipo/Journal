@@ -161,7 +161,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     if (userId && isSupabaseConfigured) {
       try {
-        const [tradesRes, accountsRes, mistakesRes, playbooksRes] = await Promise.all([
+        const [tradesRes, accountsRes, mistakesRes, playbooksRes, systemRes] = await Promise.all([
           serverSupabase
             .from('trades')
             .select('*')
@@ -180,15 +180,21 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             .from('playbooks')
             .select('id, title, description, is_active')
             .eq('user_id', userId),
+          serverSupabase
+            .from('system_sections')
+            .select('id, title, content, order_index')
+            .eq('user_id', userId)
+            .order('order_index', { ascending: true }),
         ]);
 
         const trades = tradesRes.data || [];
         const accounts = accountsRes.data || [];
         const mistakes = mistakesRes.data || [];
         const playbooks = playbooksRes.data || [];
+        const systemSections = systemRes.data || [];
 
-        if (trades.length > 0 || playbooks.length > 0 || accounts.length > 0) {
-          fullContext = buildFullAdvisorContext(trades, accounts, playbooks, mistakes);
+        if (trades.length > 0 || playbooks.length > 0 || accounts.length > 0 || systemSections.length > 0) {
+          fullContext = buildFullAdvisorContext(trades, accounts, playbooks, mistakes, systemSections);
         }
       } catch (dbErr) {
         console.error('Error fetching full data from database:', dbErr);
@@ -197,7 +203,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     // Fallback: If server DB yielded no trades or RLS restricted access, check clientContext snapshot
     if (!fullContext || fullContext.tradesLog.length === 0) {
-      if (body?.clientContext && (body.clientContext.tradesLog?.length > 0 || body.clientContext.aggregates?.totalTrades > 0)) {
+      if (body?.clientContext && (body.clientContext.tradesLog?.length > 0 || body.clientContext.aggregates?.totalTrades > 0 || body.clientContext.systemSections?.length > 0)) {
         fullContext = body.clientContext;
       } else if (body?.clientStats && body.clientStats.totalTrades > 0) {
         fullContext = {
@@ -206,11 +212,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           byDirection: [],
           accounts: [],
           playbooks: [],
+          systemSections: [],
           mistakes: [],
           tradesLog: [],
         };
       } else if (!fullContext) {
-        fullContext = buildFullAdvisorContext([], [], [], []);
+        fullContext = buildFullAdvisorContext([], [], [], [], []);
       }
     }
 
@@ -240,6 +247,7 @@ Your core mandates:
 1. Performance Review & Edge Optimization — audit trader edge, mathematical expectancy (EV), balance of Payoff Ratio vs Win Rate, and systematic elimination of statistical leaks.
 2. Risk Management & Capital Preservation — capital protection, drawdown control, risk of ruin, position sizing consistency, and tilt/overtrading prevention.
 3. Global Macroeconomics & Event Risk — deep macroeconomic context: major central banks (Fed, ECB, BoE, BoJ), interest rate paths, inflation metrics (CPI, Core CPI, PPI, PCE), labor data (NFP, Jobless Claims), US Treasury Yield curve dynamics (2Y/10Y), Dollar Index (DXY), VIX, and news volatility "no-trade windows".
+4. Trading System Compliance & Rule Auditing — cross-reference trader's real execution, setups, mistakes, timing, and risk per trade against their own documented Trading System, strategy rules, risk limits, and pre-trade checklists in the "ТОРГОВАЯ СИСТЕМА" section. Relentlessly call out any violations and deviations from their written rules.
 
 LANGUAGE DIRECTIVE (CRITICAL / ОБЯЗАТЕЛЬНО К ИСПОЛНЕНИЮ):
 - ALWAYS respond in the EXACT SAME LANGUAGE as the user's latest message!
@@ -263,9 +271,10 @@ CORE OPERATIONAL PRINCIPLE: ANSWER SPECIFIC QUESTIONS DIRECTLY AND TO THE POINT:
 4. Выделяй ключевые числовые значения, выводы, риск-параметры и названия сетапов/ошибок **жирным шрифтом**.
 5. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО ИСПОЛЬЗОВАТЬ ТАБЛИЦЫ MARKDOWN (не используй символ '|' и табличный синтаксис). Используй четкие маркированные списки и компактные абзацы.
 6. ОБЯЗАТЕЛЬНО завершай все предложения и мысли до конца. Никаких оборванных фраз.
+7. АУДИТ ТОРГОВОЙ СИСТЕМЫ: Если пользователь спрашивает о своей системе, дисциплине, правилах входа или соблюдении регламента — опирайся на раздел "ТОРГОВАЯ СИСТЕМА ТРЕЙДЕРА" ниже. Проверяй, действительно ли его сделки, риск-менеджмент и сетапы соответствуют тому, что он сам зафиксировал в правилах. Если есть расхождения (например, вошел вне разрешенных сессий, превысил лимит риска, совершил сделку без сетапа из системы или повторил запрещенную ошибку) — четко и строго укажи на нарушение дисциплины.
 
 БАЗА ЗНАНИЙ И МАКРОЭКОНОМИЧЕСКИЙ РЕАЛИЗМ:
-- Quantitative Metrics: EV = (WinRate * AvgWin) - (LossRate * AvgLoss), Profit Factor, Payoff Ratio, Max Drawdown, распределение исходов.
+- Quantitative Metrics: EV = (WinRate * AvgWin) - (LossRate * AvgLoss), Profit Factor, Payoff Ratio, Max Drawdown, распределение исходов, Day of Week anomalies, Revenge Trading detection (< 20 min after SL).
 - Edge & Execution: удержание победителей vs пересиживание проигравших, тайминг входов, соотношение Long/Short, сессионный дисбаланс (London, NY AM, NY PM, Asia).
 - Macroeconomic Analysis: процентные ставки, ожидания денежно-кредитной политики, влияние сюрпризов в данных (Actual vs Forecast) на волатильность и спреды, межрыночные корреляции.
 
@@ -279,8 +288,13 @@ CORE OPERATIONAL PRINCIPLE: ANSWER SPECIFIC QUESTIONS DIRECTLY AND TO THE POINT:
 
 АКТУАЛЬНЫЕ ДАННЫЕ ТРЕЙДЕРА:
 
---- ОБЩИЕ МЕТРИКИ ---
+--- ОБЩИЕ МЕТРИКИ (ВКЛЮЧАЯ ДНИ НЕДЕЛИ И ПОВЕДЕНЧЕСКИЙ РИСК / ТИЛЬТ) ---
 ${JSON.stringify(fullContext.aggregates)}
+
+--- ТОРГОВАЯ СИСТЕМА, ПРАВИЛА И РЕГЛАМЕНТ ТРЕЙДЕРА (ИЗ РАЗДЕЛА SYSTEM) ---
+${fullContext.systemSections && fullContext.systemSections.length > 0 
+  ? fullContext.systemSections.map((s) => `### [${s.title}]\n${s.content || '(Раздел пуст)'}`).join('\n\n')
+  : 'Пользователь еще не заполнил разделы торговой системы в приложении.'}
 
 --- ЭФФЕКТИВНОСТЬ ПО СЕТАПАМ ---
 ${JSON.stringify(fullContext.bySetup)}

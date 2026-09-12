@@ -38,11 +38,13 @@ import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
+  DragOverlay,
 } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
@@ -74,6 +76,58 @@ const INITIAL_LAYOUT: WidgetInstance[] = [
   { id: 'w13', type: 'equitySparkline', size: 'large' },
 ];
 
+function getInitialLayout(): WidgetInstance[] {
+  if (typeof window === 'undefined') return INITIAL_LAYOUT;
+  const savedLayout = localStorage.getItem('widgetLayout_v5');
+  if (savedLayout) {
+    try {
+      const parsed = JSON.parse(savedLayout);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const valid = parsed
+          .filter(w => Boolean(WIDGET_REGISTRY[w.type as keyof typeof WIDGET_REGISTRY]))
+          .map(w => {
+            const entry = WIDGET_REGISTRY[w.type as keyof typeof WIDGET_REGISTRY];
+            if (!entry.supportedSizes.includes(w.size)) {
+              return { ...w, size: entry.supportedSizes[0] };
+            }
+            return w;
+          });
+        if (valid.length > 0) return valid;
+      }
+    } catch (e) {
+      console.error('Failed to parse saved dashboard layout v5', e);
+    }
+  }
+
+  const legacyLayout = localStorage.getItem('widgetLayout_v4');
+  if (legacyLayout) {
+    try {
+      const parsed = JSON.parse(legacyLayout);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const migrated: WidgetInstance[] = [];
+        for (const item of parsed) {
+          if (item.type === 'bestWorstSessions') {
+            migrated.push({ id: `${item.id}_best`, type: 'bestSession', size: 'small' });
+            migrated.push({ id: `${item.id}_worst`, type: 'worstSession', size: 'small' });
+          } else if (item.type === 'bestWorstSetups') {
+            migrated.push({ id: `${item.id}_best`, type: 'bestSetup', size: 'small' });
+            migrated.push({ id: `${item.id}_worst`, type: 'worstSetup', size: 'small' });
+          } else if (WIDGET_REGISTRY[item.type as keyof typeof WIDGET_REGISTRY]) {
+            const entry = WIDGET_REGISTRY[item.type as keyof typeof WIDGET_REGISTRY];
+            const validSize = entry.supportedSizes.includes(item.size) ? item.size : entry.supportedSizes[0];
+            migrated.push({ ...item, size: validSize });
+          }
+        }
+        if (migrated.length > 0) return migrated;
+      }
+    } catch (e) {
+      console.error('Failed to migrate legacy layout', e);
+    }
+  }
+
+  return INITIAL_LAYOUT;
+}
+
 function DashboardSkeleton() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 pb-32 md:pb-8 animate-pulse">
@@ -94,7 +148,7 @@ function DashboardSkeleton() {
   );
 }
 
-// Sortable Item Component с поддержкой каскадного входа
+// Sortable Item Component с плавной анимацией перемещения без конфликтов с Framer Motion
 function SortableWidget({ 
   widget, 
   index,
@@ -119,36 +173,26 @@ function SortableWidget({
     isDragging,
   } = useSortable({ id: widget.id, disabled: !isEditMode });
 
-  const style = {
-    transform: transform ? CSS.Transform.toString({
-      ...transform,
-      scaleX: isDragging ? 1.04 : 1,
-      scaleY: isDragging ? 1.04 : 1,
-    }) : undefined,
-    transition,
-    zIndex: isDragging ? 40 : 1,
-    touchAction: isDragging ? 'none' : 'pan-y',
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition: transition || undefined,
+    zIndex: isDragging ? 0 : 1,
+    opacity: isDragging ? 0.25 : 1,
   };
 
   const RegistryEntry = WIDGET_REGISTRY[widget.type];
   if (!RegistryEntry) return null;
   const WidgetComponent = RegistryEntry.component;
 
-  const staggerDelay = Math.min(index * 0.025, 0.2);
-
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: staggerDelay, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        "relative w-full h-full rounded-[26px] transition-shadow",
+        "relative w-full h-full rounded-[26px]",
         widget.size === 'small' && "col-span-1 row-span-1 aspect-square",
         widget.size === 'medium' && "col-span-2 row-span-1 aspect-[2/1]", 
-        widget.size === 'large' && "col-span-2 row-span-2 aspect-square",
-        isDragging && "shadow-2xl cursor-grabbing"
+        widget.size === 'large' && "col-span-2 row-span-2 aspect-square"
       )}
     >
       <div className={cn(
@@ -172,21 +216,21 @@ function SortableWidget({
               {...listeners}
               style={{ touchAction: 'none' }}
               aria-label="Drag widget to reorder"
-              className="p-1.5 bg-card/90 backdrop-blur-md rounded-full shadow-md border border-border-card text-text-muted cursor-grab active:cursor-grabbing hover:text-text-main transition-colors"
+              className="w-10 h-10 md:w-8 md:h-8 bg-card/95 backdrop-blur-md rounded-full shadow-md border border-border-card text-text-muted cursor-grab active:cursor-grabbing hover:text-text-main flex items-center justify-center transition-colors shrink-0 select-none"
             >
-              <GripHorizontal size={16} />
+              <GripHorizontal size={18} />
             </div>
             <button 
               type="button"
               onClick={() => onRemove(widget.id)}
               aria-label="Remove widget"
-              className="w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-rose-600 active:scale-95 transition-all cursor-pointer"
+              className="w-10 h-10 md:w-8 md:h-8 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-rose-600 active:scale-95 transition-all cursor-pointer shrink-0"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
 
-          <div className="h-7 bg-card/95 backdrop-blur-md rounded-full shadow-md border border-border-card flex items-center p-0.5 gap-0.5 pointer-events-auto mt-auto mb-1">
+          <div className="h-8 md:h-7 bg-card/95 backdrop-blur-md rounded-full shadow-md border border-border-card flex items-center p-0.5 gap-0.5 pointer-events-auto mt-auto mb-1">
             {(['small', 'medium', 'large'] as WidgetSize[]).map((size) => {
               const isSupported = RegistryEntry.supportedSizes.includes(size);
               if (!isSupported) return null;
@@ -201,7 +245,7 @@ function SortableWidget({
                     onChangeSize(widget.id, size);
                   }}
                   className={cn(
-                    "px-2 h-full text-xs font-semibold rounded-full transition-all uppercase tracking-wider cursor-pointer",
+                    "px-2.5 md:px-2 h-full text-xs font-semibold rounded-full transition-all uppercase tracking-wider cursor-pointer flex items-center justify-center",
                     isSelected 
                       ? "bg-blue-500 text-white shadow-xs" 
                       : "text-text-muted hover:text-text-main hover:bg-canvas"
@@ -214,13 +258,14 @@ function SortableWidget({
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
 export function Dashboard() {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [layout, setLayout] = useState<WidgetInstance[]>(INITIAL_LAYOUT);
+  const [layout, setLayout] = useState<WidgetInstance[]>(getInitialLayout);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -238,9 +283,15 @@ export function Dashboard() {
   const [selectedIdeaForTrade, setSelectedIdeaForTrade] = useState<any | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 100,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -248,56 +299,13 @@ export function Dashboard() {
     })
   );
 
+  const activeWidget = useMemo(
+    () => layout.find(w => w.id === activeId) || null,
+    [layout, activeId]
+  );
+
   useEffect(() => {
     setIsMounted(true);
-    const savedLayout = localStorage.getItem('widgetLayout_v5');
-    if (savedLayout) {
-      try {
-        const parsed = JSON.parse(savedLayout);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const valid = parsed
-            .filter(w => Boolean(WIDGET_REGISTRY[w.type as keyof typeof WIDGET_REGISTRY]))
-            .map(w => {
-              const entry = WIDGET_REGISTRY[w.type as keyof typeof WIDGET_REGISTRY];
-              if (!entry.supportedSizes.includes(w.size)) {
-                return { ...w, size: entry.supportedSizes[0] };
-              }
-              return w;
-            });
-          if (valid.length > 0) setLayout(valid);
-        }
-      } catch (e) {
-        console.error('Failed to parse saved dashboard layout v5', e);
-      }
-    } else {
-      // Check for v4 legacy layout and migrate to separate widgets
-      const legacyLayout = localStorage.getItem('widgetLayout_v4');
-      if (legacyLayout) {
-        try {
-          const parsed = JSON.parse(legacyLayout);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const migrated: WidgetInstance[] = [];
-            for (const item of parsed) {
-              if (item.type === 'bestWorstSessions') {
-                migrated.push({ id: `${item.id}_best`, type: 'bestSession', size: 'small' });
-                migrated.push({ id: `${item.id}_worst`, type: 'worstSession', size: 'small' });
-              } else if (item.type === 'bestWorstSetups') {
-                migrated.push({ id: `${item.id}_best`, type: 'bestSetup', size: 'small' });
-                migrated.push({ id: `${item.id}_worst`, type: 'worstSetup', size: 'small' });
-              } else if (WIDGET_REGISTRY[item.type as keyof typeof WIDGET_REGISTRY]) {
-                const entry = WIDGET_REGISTRY[item.type as keyof typeof WIDGET_REGISTRY];
-                const validSize = entry.supportedSizes.includes(item.size) ? item.size : entry.supportedSizes[0];
-                migrated.push({ ...item, size: validSize });
-              }
-            }
-            if (migrated.length > 0) setLayout(migrated);
-          }
-        } catch (e) {
-          console.error('Failed to migrate legacy layout', e);
-        }
-      }
-    }
-
     const savedAccountId = localStorage.getItem('dashboard_selected_account_id');
     if (savedAccountId) {
       setSelectedAccountId(savedAccountId);
@@ -525,7 +533,13 @@ export function Dashboard() {
   }, [accounts]);
 
   const removeWidget = (id: string) => {
-    setLayout(prev => prev.filter(w => w.id !== id));
+    setLayout(prev => {
+      const next = prev.filter(w => w.id !== id);
+      try {
+        localStorage.setItem('widgetLayout_v5', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
   };
 
   const addWidget = (type: keyof typeof WIDGET_REGISTRY) => {
@@ -535,27 +549,55 @@ export function Dashboard() {
       type,
       size: supportedSizes[0]
     };
-    setLayout(prev => [...prev, newWidget]);
+    setLayout(prev => {
+      const next = [...prev, newWidget];
+      try {
+        localStorage.setItem('widgetLayout_v5', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
     setIsAddMenuOpen(false);
   };
 
   const changeSize = (id: string, newSize: WidgetSize) => {
-    setLayout(prev => prev.map(w => w.id === id ? { ...w, size: newSize } : w));
+    setLayout(prev => {
+      const next = prev.map(w => w.id === id ? { ...w, size: newSize } : w);
+      try {
+        localStorage.setItem('widgetLayout_v5', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
   };
 
   const restoreDefaultLayout = () => {
     setLayout(INITIAL_LAYOUT);
+    try {
+      localStorage.setItem('widgetLayout_v5', JSON.stringify(INITIAL_LAYOUT));
+    } catch (e) {}
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
     if (over && active.id !== over.id) {
       setLayout((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const next = arrayMove(items, oldIndex, newIndex);
+        try {
+          localStorage.setItem('widgetLayout_v5', JSON.stringify(next));
+        } catch (e) {}
+        return next;
       });
     }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
   };
 
   const iconMap: Record<string, React.ReactNode> = {
@@ -624,6 +666,19 @@ export function Dashboard() {
               <Plus size={14} />
               <span className="hidden sm:inline">Add Account</span>
             </a>
+          )}
+
+          {isEditMode && (
+            <button
+              type="button"
+              onClick={restoreDefaultLayout}
+              aria-label="Restore default layout"
+              title="Reset widgets to default layout"
+              className="h-11 px-3.5 md:h-10 rounded-full flex items-center gap-2 bg-canvas border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-card active:scale-95 transition-all cursor-pointer"
+            >
+              <RotateCcw size={15} />
+              <span className="hidden sm:inline">Reset Layout</span>
+            </button>
           )}
 
           <button 
@@ -705,7 +760,9 @@ export function Dashboard() {
             <DndContext 
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5 pb-32 md:pb-8 items-start relative z-10">
                 <SortableContext 
@@ -748,6 +805,37 @@ export function Dashboard() {
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* DragOverlay для плавной 60fps анимации перетаскивания (§3 A, design.md: scale 1.04, shadow-2xl) */}
+              <DragOverlay
+                dropAnimation={{
+                  duration: 200,
+                  easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              >
+                {activeWidget ? (
+                  <div
+                    className={cn(
+                      "w-full h-full rounded-[26px] shadow-2xl ring-2 ring-blue-500/80 bg-card overflow-hidden cursor-grabbing select-none transition-shadow",
+                      activeWidget.size === 'small' && "aspect-square",
+                      activeWidget.size === 'medium' && "aspect-[2/1]",
+                      activeWidget.size === 'large' && "aspect-square"
+                    )}
+                    style={{
+                      transform: 'scale(1.04)',
+                    }}
+                  >
+                    <div className="h-full w-full pointer-events-none select-none">
+                      {(() => {
+                        const Entry = WIDGET_REGISTRY[activeWidget.type];
+                        if (!Entry) return null;
+                        const Comp = Entry.component;
+                        return <Comp size={activeWidget.size} {...sharedWidgetData} />;
+                      })()}
+                    </div>
+                  </div>
+                ) : null}
+              </DragOverlay>
             </DndContext>
           </motion.div>
         )}

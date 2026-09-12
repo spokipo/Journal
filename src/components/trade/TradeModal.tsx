@@ -335,6 +335,13 @@ export function TradeModal({
     }
   };
 
+  const isValidUuid = (id?: string | null): string | null => {
+    if (!id) return null;
+    if (id.startsWith('local-') || id.startsWith('offline-')) return null;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id) ? id : null;
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!symbol) {
@@ -348,37 +355,94 @@ export function TradeModal({
     try {
       const parsedRisk = riskPercent ? parseFloat(riskPercent) : 1.0;
       const parsedRr = rr ? parseFloat(rr) : 0.0;
-      const mistakeIdsArray = selectedMistakeId && !selectedMistakeId.startsWith('local-') ? [selectedMistakeId] : [];
-      let calcPnlR = 0;
-      if (outcome === 'TP') calcPnlR = parsedRr;
-      else if (outcome === 'SL') calcPnlR = -1;
-
-      const calcPnlPercent = Number((calcPnlR * parsedRisk).toFixed(4));
-      const payload = {
-        symbol, direction: direction.toUpperCase(), outcome, session, timeframe: timeframe || null,
-        risk_percent: parsedRisk, rr: parsedRr, pnl_r: calcPnlR, pnl_percent: calcPnlPercent,
-        setup_id: setupId || null, mistake_ids: mistakeIdsArray, account_id: accountId || null,
-        idea_id: activeIdea?.id || null, screenshots, notes: notes.trim() || null,
+      const mistakeIdsArray = selectedMistakeId && isValidUuid(selectedMistakeId) ? [selectedMistakeId] : [];
+      
+      const payload: Record<string, any> = {
+        symbol: symbol.trim().toUpperCase(),
+        direction: direction.toUpperCase(),
+        outcome,
+        session,
+        timeframe: timeframe || null,
+        risk_percent: isNaN(parsedRisk) ? 1.0 : parsedRisk,
+        rr: isNaN(parsedRr) ? 0.0 : parsedRr,
+        setup_id: isValidUuid(setupId),
+        mistake_ids: mistakeIdsArray,
+        account_id: isValidUuid(accountId),
+        idea_id: isValidUuid(activeIdea?.id),
+        screenshots: Array.isArray(screenshots) ? screenshots : [],
+        notes: notes.trim() || null,
       };
 
-      if (isSupabaseConfigured && user) {
-        if (editingTrade?.id) {
-          const { error: updateErr } = await supabase.from('trades').update(payload).eq('id', editingTrade.id).eq('user_id', user.id);
+      // Strict guarantee: generated always columns in Postgres must NEVER be sent
+      delete payload.pnl_r;
+      delete payload.pnl_percent;
+      delete payload.pnl_amount;
+
+      if (isSupabaseConfigured && user && user.id && user.id !== 'local-user') {
+        if (editingTrade?.id && isValidUuid(editingTrade.id)) {
+          const { error: updateErr } = await supabase
+            .from('trades')
+            .update(payload)
+            .eq('id', editingTrade.id)
+            .eq('user_id', user.id);
           if (updateErr) throw updateErr;
         } else {
-          const insertPayload = { ...payload, user_id: user.id, trade_date: new Date().toISOString() };
-          const { error: insertErr } = await supabase.from('trades').insert([insertPayload]);
+          const insertPayload = {
+            ...payload,
+            user_id: user.id,
+            trade_date: editingTrade?.trade_date || new Date().toISOString(),
+          };
+          delete insertPayload.pnl_r;
+          delete insertPayload.pnl_percent;
+          delete insertPayload.pnl_amount;
+
+          const { error: insertErr } = await supabase
+            .from('trades')
+            .insert([insertPayload]);
           if (insertErr) throw insertErr;
 
-          if (activeIdea?.id) {
-            await supabase.from('ideas').update({ status: 'executed' }).eq('id', activeIdea.id).eq('user_id', user.id);
+          if (activeIdea?.id && isValidUuid(activeIdea.id)) {
+            await supabase
+              .from('ideas')
+              .update({ status: 'executed' })
+              .eq('id', activeIdea.id)
+              .eq('user_id', user.id);
           }
         }
       }
 
+      // Update offline cache for resilience
+      try {
+        const cached = localStorage.getItem('trades_offline');
+        const existingTrades: any[] = cached ? JSON.parse(cached) : [];
+        if (editingTrade?.id) {
+          const updated = existingTrades.map((t) => (t.id === editingTrade.id ? { ...t, ...payload } : t));
+          localStorage.setItem('trades_offline', JSON.stringify(updated));
+        } else {
+          const newTradeOffline = {
+            id: `offline-${Date.now()}`,
+            ...payload,
+            user_id: user?.id || 'local-user',
+            trade_date: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+          };
+          localStorage.setItem('trades_offline', JSON.stringify([newTradeOffline, ...existingTrades]));
+        }
+
+        if (activeIdea?.id) {
+          const cachedIdeas = localStorage.getItem('ideas_offline');
+          if (cachedIdeas) {
+            const parsed = JSON.parse(cachedIdeas);
+            const updated = parsed.map((i: any) => (i.id === activeIdea.id ? { ...i, status: 'executed' } : i));
+            localStorage.setItem('ideas_offline', JSON.stringify(updated));
+          }
+        }
+      } catch (cacheErr) {
+        console.warn('Failed to update offline trades cache:', cacheErr);
+      }
+
       onSuccess?.();
       if (editingTrade) {
-        // Return to view mode if editing existing trade
         setIsEditing(false);
       } else {
         onClose();
@@ -509,6 +573,7 @@ export function TradeModal({
               </button>
               <button
                 type="submit"
+                onClick={handleSubmit}
                 disabled={isSubmitting || isUploading || !symbol}
                 className="h-10 px-5 rounded-full bg-blue-500 border border-blue-500 text-white text-sm font-medium hover:bg-blue-600 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-xs"
               >
@@ -702,6 +767,24 @@ export function TradeModal({
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               className="space-y-5"
             >
+              {/* Error Banner */}
+              {error && (
+                <div className="p-3.5 rounded-[18px] bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-medium flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertTriangle size={16} className="shrink-0 text-rose-500" />
+                    <span className="leading-relaxed truncate">{error}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setError(null)}
+                    className="p-1 hover:bg-rose-500/20 rounded-full cursor-pointer transition-colors shrink-0"
+                    aria-label="Dismiss error"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
               {/* Linked Idea Notice */}
               {activeIdea && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-[18px] flex items-center justify-between gap-3 text-xs">
@@ -759,29 +842,28 @@ export function TradeModal({
                     </label>
                   </div>
                   <div className="relative grid grid-cols-3 gap-1 p-1 bg-card md:bg-canvas border border-border-card rounded-full min-h-11 md:h-10 items-stretch">
-                    {(['TP', 'SL', 'BE'] as TradeOutcome[]).map((oc) => (
-                      <button
-                        key={oc}
-                        type="button"
-                        onClick={() => setOutcome(oc)}
-                        className={cn(
-                          "relative z-10 h-full rounded-full text-xs font-semibold transition-colors cursor-pointer select-none flex items-center justify-center",
-                          outcome === oc ? "text-white" : "text-text-muted hover:text-text-main"
-                        )}
-                      >
-                        {outcome === oc && (
-                          <motion.div
-                            layoutId="trade-modal-outcome-pill"
-                            transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                            className={cn(
-                              "absolute inset-0 rounded-full shadow-sm -z-10",
-                              oc === 'TP' ? "bg-emerald-500" : oc === 'SL' ? "bg-rose-500" : "bg-amber-500"
-                            )}
-                          />
-                        )}
-                        {oc}
-                      </button>
-                    ))}
+                    {(['TP', 'SL', 'BE'] as TradeOutcome[]).map((oc) => {
+                      const isActive = outcome === oc;
+                      const activeBg =
+                        oc === 'TP'
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : oc === 'SL'
+                          ? 'bg-rose-500 text-white shadow-xs'
+                          : 'bg-amber-500 text-white shadow-xs';
+                      return (
+                        <button
+                          key={oc}
+                          type="button"
+                          onClick={() => setOutcome(oc)}
+                          className={cn(
+                            "relative h-full rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer select-none flex items-center justify-center",
+                            isActive ? activeBg : "text-text-muted hover:text-text-main"
+                          )}
+                        >
+                          {oc}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

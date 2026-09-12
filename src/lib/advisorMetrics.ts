@@ -24,6 +24,24 @@ export interface MacroEvent {
   impact: 'HIGH' | 'MED' | 'LOW';
 }
 
+export interface DayOfWeekStats {
+  day: string;
+  tradesCount: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;
+  netR: number;
+}
+
+export interface BehavioralMetrics {
+  revengeTradesCount: number; // trades entered < 20 min after a loss
+  revengeLossR: number;
+  maxConsecutiveLosses: number;
+  maxTradesInSingleDay: number;
+  riskEscalationsCount: number; // trades where riskPercent exceeded 1.5x of trader's median risk
+  medianRiskPercent: number | null;
+}
+
 export interface AdvisorAggregates {
   winRate: number;
   profitFactor: number;
@@ -33,12 +51,15 @@ export interface AdvisorAggregates {
   totalTrades: number;
   netR: number;
   sessions: SessionStats[];
+  daysOfWeek: DayOfWeekStats[];
+  behavioral: BehavioralMetrics;
   topMistakes: MistakeStat[];
 }
 
 export interface AdvisorTradeRecord {
   id: string;
   date: string;
+  time?: string;
   symbol: string;
   direction: 'LONG' | 'SHORT';
   session: string;
@@ -62,6 +83,13 @@ export interface AdvisorPlaybookRecord {
   tradesCount: number;
   winRate: number;
   netR: number;
+}
+
+export interface AdvisorSystemSection {
+  id: string;
+  title: string;
+  content: string;
+  orderIndex: number;
 }
 
 export interface AdvisorAccountRecord {
@@ -94,6 +122,7 @@ export interface FullAdvisorContext {
   byDirection: AdvisorBreakdownItem[];
   accounts: AdvisorAccountRecord[];
   playbooks: AdvisorPlaybookRecord[];
+  systemSections: AdvisorSystemSection[];
   mistakes: AdvisorMistakeRecord[];
   tradesLog: AdvisorTradeRecord[];
 }
@@ -138,6 +167,23 @@ export function computeAdvisorMetrics(
   accounts: TradingAccount[],
   mistakesMap: Record<string, string> = {}
 ): AdvisorAggregates {
+  const defaultDaysOfWeek: DayOfWeekStats[] = [
+    { day: 'Monday', tradesCount: 0, winCount: 0, lossCount: 0, winRate: 0, netR: 0 },
+    { day: 'Tuesday', tradesCount: 0, winCount: 0, lossCount: 0, winRate: 0, netR: 0 },
+    { day: 'Wednesday', tradesCount: 0, winCount: 0, lossCount: 0, winRate: 0, netR: 0 },
+    { day: 'Thursday', tradesCount: 0, winCount: 0, lossCount: 0, winRate: 0, netR: 0 },
+    { day: 'Friday', tradesCount: 0, winCount: 0, lossCount: 0, winRate: 0, netR: 0 },
+  ];
+
+  const defaultBehavioral: BehavioralMetrics = {
+    revengeTradesCount: 0,
+    revengeLossR: 0,
+    maxConsecutiveLosses: 0,
+    maxTradesInSingleDay: 0,
+    riskEscalationsCount: 0,
+    medianRiskPercent: null,
+  };
+
   if (!trades || trades.length === 0) {
     return {
       winRate: 0,
@@ -152,6 +198,8 @@ export function computeAdvisorMetrics(
         { session: 'NY AM', tradesCount: 0, winCount: 0, lossCount: 0, winRate: 0, netR: 0 },
         { session: 'NY PM', tradesCount: 0, winCount: 0, lossCount: 0, winRate: 0, netR: 0 },
       ],
+      daysOfWeek: defaultDaysOfWeek,
+      behavioral: defaultBehavioral,
       topMistakes: [],
     };
   }
@@ -188,7 +236,135 @@ export function computeAdvisorMetrics(
     }))
     .sort((a, b) => b.tradesCount - a.tradesCount);
 
-  // 2. Mistake tags breakdown
+  // 2. Day of Week Breakdown (Monday - Friday)
+  const dayNameList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const daysMap = new Map<string, { count: number; wins: number; losses: number; netR: number }>();
+  ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].forEach((d) => {
+    daysMap.set(d, { count: 0, wins: 0, losses: 0, netR: 0 });
+  });
+
+  enriched.forEach((t) => {
+    if (t.trade_date) {
+      const d = new Date(t.trade_date);
+      if (!isNaN(d.getTime())) {
+        const dayName = dayNameList[d.getUTCDay()];
+        const entry = daysMap.get(dayName) || { count: 0, wins: 0, losses: 0, netR: 0 };
+        entry.count++;
+        if (t.outcome === 'TP') entry.wins++;
+        if (t.outcome === 'SL') entry.losses++;
+        entry.netR += t.pnl_r;
+        daysMap.set(dayName, entry);
+      }
+    }
+  });
+
+  const daysOfWeek: DayOfWeekStats[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    .map((day) => {
+      const d = daysMap.get(day) || { count: 0, wins: 0, losses: 0, netR: 0 };
+      return {
+        day,
+        tradesCount: d.count,
+        winCount: d.wins,
+        lossCount: d.losses,
+        winRate: d.count > 0 ? Number(((d.wins / d.count) * 100).toFixed(1)) : 0,
+        netR: Number(d.netR.toFixed(2)),
+      };
+    });
+
+  // 3. Behavioral & Tilt Metrics
+  const getTradeTs = (tr: RawTrade) => {
+    if (tr.trade_date && tr.trade_date.includes('T')) {
+      const ts = new Date(tr.trade_date).getTime();
+      if (!isNaN(ts)) return ts;
+    }
+    if (tr.created_at) {
+      const ts = new Date(tr.created_at).getTime();
+      if (!isNaN(ts)) return ts;
+    }
+    if (tr.trade_date) {
+      const ts = new Date(tr.trade_date).getTime();
+      if (!isNaN(ts)) return ts;
+    }
+    return 0;
+  };
+
+  const chronoTrades = [...enriched].sort((a, b) => getTradeTs(a) - getTradeTs(b));
+
+  // Max consecutive losses
+  let currentStreak = 0;
+  let maxConsecutiveLosses = 0;
+  chronoTrades.forEach((t) => {
+    const isLoss = t.outcome === 'SL' || t.pnl_r < 0;
+    const isWin = t.outcome === 'TP' || t.pnl_r > 0;
+    if (isLoss) {
+      currentStreak++;
+      if (currentStreak > maxConsecutiveLosses) {
+        maxConsecutiveLosses = currentStreak;
+      }
+    } else if (isWin) {
+      currentStreak = 0;
+    }
+  });
+
+  // Max trades in a single day
+  const tradesPerDayMap = new Map<string, number>();
+  chronoTrades.forEach((t) => {
+    const dayKey = t.trade_date ? t.trade_date.split('T')[0] : 'unknown';
+    tradesPerDayMap.set(dayKey, (tradesPerDayMap.get(dayKey) || 0) + 1);
+  });
+  let maxTradesInSingleDay = 0;
+  tradesPerDayMap.forEach((cnt) => {
+    if (cnt > maxTradesInSingleDay) maxTradesInSingleDay = cnt;
+  });
+
+  // Revenge trades entered <= 20 min after a loss
+  let revengeTradesCount = 0;
+  let revengeLossR = 0;
+  for (let i = 1; i < chronoTrades.length; i++) {
+    const prev = chronoTrades[i - 1];
+    const curr = chronoTrades[i];
+    const prevTs = getTradeTs(prev);
+    const currTs = getTradeTs(curr);
+
+    const prevWasLoss = prev.outcome === 'SL' || prev.pnl_r < 0;
+    if (prevWasLoss && prevTs > 0 && currTs > 0 && currTs >= prevTs) {
+      const diffMinutes = (currTs - prevTs) / (1000 * 60);
+      if (diffMinutes > 0 && diffMinutes <= 20) {
+        revengeTradesCount++;
+        if (curr.pnl_r < 0) {
+          revengeLossR += Math.abs(curr.pnl_r);
+        }
+      }
+    }
+  }
+
+  // Median risk and risk escalations (> 1.5x median risk)
+  const risks = chronoTrades
+    .map((t) => Number(t.risk_percent))
+    .filter((r) => !isNaN(r) && r > 0)
+    .sort((a, b) => a - b);
+
+  let medianRiskPercent: number | null = null;
+  let riskEscalationsCount = 0;
+  if (risks.length > 0) {
+    const mid = Math.floor(risks.length / 2);
+    medianRiskPercent = risks.length % 2 !== 0 ? risks[mid] : Number(((risks[mid - 1] + risks[mid]) / 2).toFixed(2));
+    if (medianRiskPercent && medianRiskPercent > 0) {
+      const threshold = 1.5 * medianRiskPercent;
+      riskEscalationsCount = risks.filter((r) => r > threshold).length;
+    }
+  }
+
+  const behavioral: BehavioralMetrics = {
+    revengeTradesCount,
+    revengeLossR: Number(revengeLossR.toFixed(2)),
+    maxConsecutiveLosses,
+    maxTradesInSingleDay,
+    riskEscalationsCount,
+    medianRiskPercent,
+  };
+
+  // 4. Mistake tags breakdown
   const mistakeCountMap = new Map<string, { count: number; totalLossR: number }>();
   enriched.forEach((t) => {
     if (t.mistake_ids && Array.isArray(t.mistake_ids)) {
@@ -225,6 +401,8 @@ export function computeAdvisorMetrics(
     totalTrades: summary.totalTrades,
     netR: summary.netR,
     sessions: sessionStats,
+    daysOfWeek,
+    behavioral,
     topMistakes,
   };
 }
@@ -239,14 +417,35 @@ export async function getTodayMacroEvents(): Promise<TodayMacroEvent[]> {
 }
 
 /**
+ * Strips HTML tags and preserves readable spacing from rich text / TipTap content.
+ */
+function cleanSectionContent(htmlOrText: string): string {
+  if (!htmlOrText) return '';
+  return htmlOrText
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
  * Builds a complete context package for the AI Advisor, giving it access to
- * all trades (with notes & mistakes), playbooks/setups, accounts, and breakdowns.
+ * all trades (with notes & mistakes), playbooks/setups, accounts, system sections, and breakdowns.
  */
 export function buildFullAdvisorContext(
   trades: RawTrade[],
   accounts: TradingAccount[] = [],
   playbooks: Array<{ id: string; title: string; description?: string | null; is_active?: boolean }> = [],
-  mistakes: Array<{ id: string; name: string }> = []
+  mistakes: Array<{ id: string; name: string }> = [],
+  systemSections: Array<{ id: string; title: string; content: string; order_index?: number }> = []
 ): FullAdvisorContext {
   const mistakesMap: Record<string, string> = {};
   mistakes.forEach((m) => {
@@ -264,6 +463,13 @@ export function buildFullAdvisorContext(
   });
 
   const aggregates = computeAdvisorMetrics(trades, accounts, mistakesMap);
+
+  const cleanedSections: AdvisorSystemSection[] = (systemSections || []).map((s) => ({
+    id: s.id,
+    title: s.title,
+    content: cleanSectionContent(s.content),
+    orderIndex: s.order_index ?? 0,
+  }));
 
   if (!trades || trades.length === 0) {
     return {
@@ -287,6 +493,7 @@ export function buildFullAdvisorContext(
         winRate: 0,
         netR: 0,
       })),
+      systemSections: cleanedSections,
       mistakes: mistakes.map((m) => ({
         id: m.id,
         name: m.name,
@@ -439,6 +646,7 @@ export function buildFullAdvisorContext(
     byDirection,
     accounts: accountsResult,
     playbooks: playbooksResult,
+    systemSections: cleanedSections,
     mistakes: mistakesResult,
     tradesLog: tradesLog.slice(0, 150),
   };

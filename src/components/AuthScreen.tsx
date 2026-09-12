@@ -131,35 +131,27 @@ export function AuthScreen({ onToggleTheme, onSuccess, isModal = false }: AuthSc
           <button
             type="button"
             onClick={() => handleModeSwitch('login')}
-            className={`relative h-9 text-xs font-semibold rounded-full transition-colors cursor-pointer z-10 flex items-center justify-center ${
-              mode === 'login' ? 'text-text-main' : 'text-text-muted hover:text-text-main'
-            }`}
-          >
-            {mode === 'login' && (
-              <motion.div
-                layoutId="auth-tab-pill-screen"
-                transition={{ type: 'spring', bounce: 0.16, duration: 0.4 }}
-                className="absolute inset-0 bg-card rounded-full shadow-xs border border-border-card"
-              />
+            className={cn(
+              "relative h-9 text-xs font-semibold rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center",
+              mode === 'login'
+                ? "bg-card text-text-main shadow-xs border border-border-card"
+                : "text-text-muted hover:text-text-main"
             )}
-            <span className="relative z-10">Sign In</span>
+          >
+            <span>Sign In</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleModeSwitch('signup')}
-            className={`relative h-9 text-xs font-semibold rounded-full transition-colors cursor-pointer z-10 flex items-center justify-center ${
-              mode === 'signup' ? 'text-text-main' : 'text-text-muted hover:text-text-main'
-            }`}
-          >
-            {mode === 'signup' && (
-              <motion.div
-                layoutId="auth-tab-pill-screen"
-                transition={{ type: 'spring', bounce: 0.16, duration: 0.4 }}
-                className="absolute inset-0 bg-card rounded-full shadow-xs border border-border-card"
-              />
+            className={cn(
+              "relative h-9 text-xs font-semibold rounded-full transition-all duration-150 cursor-pointer flex items-center justify-center",
+              mode === 'signup'
+                ? "bg-card text-text-main shadow-xs border border-border-card"
+                : "text-text-muted hover:text-text-main"
             )}
-            <span className="relative z-10">Create Account</span>
+          >
+            <span>Create Account</span>
           </button>
         </div>
 

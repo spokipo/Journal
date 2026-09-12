@@ -114,7 +114,20 @@ export function PlaybookView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('winrate_desc');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('playbook_view_mode');
+      if (saved === 'grid' || saved === 'list') return saved;
+    }
+    return 'grid';
+  });
+
+  const handleSetViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('playbook_view_mode', mode);
+    } catch (e) {}
+  };
   const [visibleCount, setVisibleCount] = useState(12);
 
   // Reset pagination on filter/sort/search change (§3 Type C)
@@ -752,7 +765,7 @@ export function PlaybookView() {
             <div className="flex p-0.5 bg-card border border-border-card rounded-full h-9 items-center shrink-0">
               <button
                 type="button"
-                onClick={() => setViewMode('grid')}
+                onClick={() => handleSetViewMode('grid')}
                 className={cn(
                   "relative w-8 h-7 flex items-center justify-center rounded-full transition-colors cursor-pointer z-10",
                   viewMode === 'grid' ? "text-text-main font-semibold" : "text-text-muted hover:text-text-main"
@@ -770,7 +783,7 @@ export function PlaybookView() {
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode('list')}
+                onClick={() => handleSetViewMode('list')}
                 className={cn(
                   "relative w-8 h-7 flex items-center justify-center rounded-full transition-colors cursor-pointer z-10",
                   viewMode === 'list' ? "text-text-main font-semibold" : "text-text-muted hover:text-text-main"
@@ -903,7 +916,7 @@ export function PlaybookView() {
           <div className="flex p-0.5 bg-card border border-border-card rounded-full h-11 items-center shrink-0">
             <button
               type="button"
-              onClick={() => setViewMode('grid')}
+              onClick={() => handleSetViewMode('grid')}
               className={cn(
                 "relative w-10 h-9 flex items-center justify-center rounded-full transition-colors cursor-pointer z-10",
                 viewMode === 'grid' ? "text-text-main" : "text-text-muted hover:text-text-main"
@@ -921,7 +934,7 @@ export function PlaybookView() {
             </button>
             <button
               type="button"
-              onClick={() => setViewMode('list')}
+              onClick={() => handleSetViewMode('list')}
               className={cn(
                 "relative w-10 h-9 flex items-center justify-center rounded-full transition-colors cursor-pointer z-10",
                 viewMode === 'list' ? "text-text-main" : "text-text-muted hover:text-text-main"

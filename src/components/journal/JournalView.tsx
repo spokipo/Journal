@@ -49,7 +49,20 @@ export function JournalView() {
   const [accountsMap, setAccountsMap] = useState<Record<string, string>>({});
   const [selectedIdeaStatus, setSelectedIdeaStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOptionKey>('date_desc');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('journal_view_mode');
+      if (saved === 'grid' || saved === 'list') return saved;
+    }
+    return 'list';
+  });
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('journal_view_mode', mode);
+    } catch (e) {}
+  };
   const [visibleCount, setVisibleCount] = useState<number>(12);
 
   const [now, setNow] = useState<number>(Date.now());
@@ -431,7 +444,7 @@ export function JournalView() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           viewMode={viewMode}
-          onViewModeChange={setViewMode}
+          onViewModeChange={handleViewModeChange}
           sortBy={sortBy}
           onSortChange={setSortBy}
           selectedIdeaStatus={selectedIdeaStatus}

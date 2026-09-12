@@ -253,7 +253,7 @@ export function AdvisorChat() {
   const getClientAdvisorData = async (currentUserId?: string): Promise<FullAdvisorContext | null> => {
     try {
       if (isSupabaseConfigured && currentUserId) {
-        const [tradesRes, accountsRes, mistakesRes, playbooksRes] = await Promise.all([
+        const [tradesRes, accountsRes, mistakesRes, playbooksRes, systemRes] = await Promise.all([
           supabase
             .from('trades')
             .select('*')
@@ -272,15 +272,21 @@ export function AdvisorChat() {
             .from('playbooks')
             .select('id, title, description, is_active')
             .eq('user_id', currentUserId),
+          supabase
+            .from('system_sections')
+            .select('id, title, content, order_index')
+            .eq('user_id', currentUserId)
+            .order('order_index', { ascending: true }),
         ]);
 
         const trades = (tradesRes.data as RawTrade[]) || [];
         const accounts = (accountsRes.data as TradingAccount[]) || [];
         const mistakes = (mistakesRes.data as Array<{ id: string; name: string }>) || [];
         const playbooks = (playbooksRes.data as Array<{ id: string; title: string; description?: string | null; is_active?: boolean }>) || [];
+        const systemSections = (systemRes.data as Array<{ id: string; title: string; content: string; order_index?: number }>) || [];
 
-        if (trades.length > 0 || playbooks.length > 0 || accounts.length > 0) {
-          return buildFullAdvisorContext(trades, accounts, playbooks, mistakes);
+        if (trades.length > 0 || playbooks.length > 0 || accounts.length > 0 || systemSections.length > 0) {
+          return buildFullAdvisorContext(trades, accounts, playbooks, mistakes, systemSections);
         }
       }
     } catch (e) {
@@ -292,13 +298,19 @@ export function AdvisorChat() {
       const cachedAccs = localStorage.getItem('trading_accounts_offline');
       const cachedPlaybooks = localStorage.getItem('playbooks_offline');
       const cachedMistakes = localStorage.getItem('user_mistakes_offline');
-      if (cachedTrades) {
-        const trades: RawTrade[] = JSON.parse(cachedTrades);
+      const systemCacheKey = currentUserId && currentUserId !== 'local-user'
+        ? `system_sections_${currentUserId}`
+        : 'system_sections_offline';
+      const cachedSystem = localStorage.getItem(systemCacheKey);
+
+      if (cachedTrades || cachedSystem) {
+        const trades: RawTrade[] = cachedTrades ? JSON.parse(cachedTrades) : [];
         const accounts: TradingAccount[] = cachedAccs ? JSON.parse(cachedAccs) : [];
         const playbooks = cachedPlaybooks ? JSON.parse(cachedPlaybooks) : [];
         const mistakes = cachedMistakes ? JSON.parse(cachedMistakes) : [];
-        if (trades.length > 0 || playbooks.length > 0) {
-          return buildFullAdvisorContext(trades, accounts, playbooks, mistakes);
+        const systemSections = cachedSystem ? JSON.parse(cachedSystem) : [];
+        if (trades.length > 0 || playbooks.length > 0 || systemSections.length > 0) {
+          return buildFullAdvisorContext(trades, accounts, playbooks, mistakes, systemSections);
         }
       }
     } catch (e) {
@@ -564,7 +576,7 @@ export function AdvisorChat() {
                   </button>
                 </div>
 
-                <div className="px-6 py-5 md:px-8 md:py-6 space-y-4 md:space-y-3">
+                <div className="px-6 py-5 pb-24 md:px-8 md:py-6 md:pb-6 space-y-4 md:space-y-3">
                 {messages.map((m) => (
                   <div
                     key={m.id}
@@ -607,25 +619,31 @@ export function AdvisorChat() {
                 </div>
               </div>
 
-              {/* --- ACTIONS & INPUT AREA (Mobile: no footer, single integrated row elevated with keyboard) --- */}
+              {/* --- ACTIONS & INPUT AREA (Mobile: Levitating pill without substrate | Desktop: Card footer) --- */}
               <div 
                 className={cn(
-                  "p-4 md:p-6 bg-card border-t border-border-card shrink-0 z-20 transition-[padding-bottom] duration-150 ease-out",
+                  "p-3 sm:p-4 md:p-6 bg-transparent md:bg-card border-t-0 md:border-t md:border-border-card shrink-0 z-20 pointer-events-none md:pointer-events-auto transition-[padding-bottom] duration-150 ease-out",
                   "md:!pb-6"
                 )}
                 style={{
                   paddingBottom: keyboardHeight > 0 
-                    ? `${keyboardHeight + 12}px` 
-                    : 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
+                    ? `${keyboardHeight + 8}px` 
+                    : 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)'
                 }}
               >
-                {/* Input form (§4 Button, §9 Accessibility) */}
+                {/* Single levitating pill on mobile / standard row on desktop (§4, §5) */}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     handleSendMessage();
                   }}
-                  className="flex items-center gap-2"
+                  className={cn(
+                    // Mobile: Levitating pill capsule (glassmorphism L2 surface, border, rounded-full, shadow)
+                    "pointer-events-auto flex items-center w-full min-h-11 rounded-full",
+                    "bg-card/90 dark:bg-card/95 backdrop-blur-xl border border-border-card shadow-xl shadow-black/10 p-1 pl-4",
+                    // Desktop: standard row inside card footer
+                    "md:min-h-0 md:bg-transparent md:border-0 md:p-0 md:shadow-none md:gap-2"
+                  )}
                 >
                   <input
                     ref={inputRef}
@@ -643,9 +661,10 @@ export function AdvisorChat() {
                     placeholder="Ask about metrics, risk, setups, or macro..."
                     disabled={isLoading}
                     className={cn(
-                      "flex-1 rounded-full bg-canvas border border-border-card text-text-main placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-all",
-                      // Mobile: h-11 (§9) | Desktop: h-10 (§2, §4)
-                      "h-11 px-4 text-sm md:h-10 md:text-xs md:focus:ring-1 md:focus:ring-blue-500/30"
+                      // Mobile: inside capsule, borderless & transparent
+                      "flex-1 bg-transparent border-0 outline-none text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:ring-0 transition-all pr-2",
+                      // Desktop: standard input pill
+                      "md:flex-1 md:rounded-full md:bg-canvas md:border md:border-border-card md:h-10 md:px-4 md:text-xs md:focus:outline-none md:focus:border-blue-500 md:focus:ring-1 md:focus:ring-blue-500/30"
                     )}
                   />
                   <button
@@ -654,11 +673,11 @@ export function AdvisorChat() {
                     aria-label="Send message"
                     className={cn(
                       "rounded-full bg-blue-500 border border-blue-500 text-white flex items-center justify-center hover:bg-blue-600 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer shrink-0 shadow-xs focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none",
-                      // Mobile: w-11 h-11 (§9) | Desktop: w-10 h-10 (§4)
-                      "w-11 h-11 md:w-10 md:h-10"
+                      // Mobile: inside pill w-9 h-9 | Desktop: w-10 h-10
+                      "w-9 h-9 md:w-10 md:h-10"
                     )}
                   >
-                    <Send className="w-[18px] h-[18px] md:w-[15px] md:h-[15px]" />
+                    <Send className="w-4 h-4 md:w-[15px] md:h-[15px]" />
                   </button>
                 </form>
               </div>
