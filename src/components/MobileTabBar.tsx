@@ -55,7 +55,7 @@ const getTabFromPath = (path: string) => {
 };
 
 export function MobileTabBar({ activeTab }: { activeTab?: string }) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, themeMode, toggleTheme } = useTheme();
   const [location, setLocation] = useLocation();
   const selectedTab = getTabFromPath(location);
 
@@ -252,7 +252,7 @@ export function MobileTabBar({ activeTab }: { activeTab?: string }) {
                       <span className="ml-3 text-sm font-medium text-text-main">Appearance</span>
                     </div>
                     <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-canvas border border-border-card text-text-muted">
-                      {theme === 'dark' ? 'Dark' : 'Light'}
+                      {themeMode === 'time' ? `${theme === 'dark' ? 'Dark' : 'Light'} (Auto)` : (theme === 'dark' ? 'Dark' : 'Light')}
                     </span>
                   </button>
 

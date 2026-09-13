@@ -34,7 +34,7 @@
 | Зона | Роль | Реализация |
 |---|---|---|
 | Shell-навигация | Одновременно nav + структурная рамка приложения (не просто список ссылок)[cite: 7] | Desktop: `Sidebar` — floating card, `m-4`, `rounded-[26px]`, `bg-card`, collapsible (80px ⇄ 280px)[cite: 7]. Mobile: floating pill tab bar (не edge-to-edge), `bg-card/90 backdrop-blur-xl`, без `border-t`, + отдельная круглая primary-кнопка рядом с pill-баром[cite: 7]. Подробности — §6[cite: 7] |
-| Content area | Скроллящаяся область конкретной страницы[cite: 7] | `flex-1 overflow-y-auto`, паддинг от Shell — `p-4 lg:p-6`, сама решает свой Layout Type (§3)[cite: 7] |
+| Content area | Скроллящаяся область конкретной страницы[cite: 7] | `flex-1 overflow-y-auto`, паддинг от Shell — `p-4 lg:p-6`. Все страницы имеют строго единую стандартизированную ширину контейнера `max-w-6xl mx-auto min-h-full w-full` без исключений[cite: 7] |
 | Overlay layer | Всё что рисуется поверх Shell+Content: modal, toast, context menu, action sheet[cite: 7] | `fixed inset-0`, z-индекс по шкале §2[cite: 7] |
 
 **Example:**
@@ -125,8 +125,8 @@ Easing `[0.25,1,0.5,1]` или `[0.16,1,0.3,1]`, длительность `0.15�
 **Example:** `<h1 className="text-2xl sm:text-3xl font-bold text-text-main">{title}</h1>`[cite: 7]
 
 ### A — Grid
-**Rule:** Полная ширина, карточки-виджеты разных размеров[cite: 7].
-**Parameters:** `grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5`; размеры виджетов — Apple WidgetKit family (`systemSmall`/`systemMedium`/`systemLarge`), см. Widget anatomy ниже[cite: 7]. Surface L2 с исключением по border (см. Widget anatomy)[cite: 7].
+**Rule:** Единая стандартизированная ширина `max-w-6xl mx-auto`, карточки-виджеты разных размеров[cite: 7].
+**Parameters:** Контейнер `w-full max-w-6xl mx-auto`. Сетка: `grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5`; размеры виджетов — Apple WidgetKit family (`systemSmall`/`systemMedium`/`systemLarge`), см. Widget anatomy ниже[cite: 7]. Surface L2 с исключением по border (см. Widget anatomy)[cite: 7].
 
 **Widget anatomy — Apple WidgetKit standard (systemSmall / systemMedium / systemLarge):**
 
@@ -172,7 +172,7 @@ Easing `[0.25,1,0.5,1]` или `[0.16,1,0.3,1]`, длительность `0.15�
 ### C — Data list
 **Rule:** Метрики сверху (L2, компакт), список записей данных (сделки, идеи, сетапы) снизу. Поддерживает два взаимозаменяемых режима отображения (ViewMode: `list` / `grid`)[cite: 7].
 
-**Parameters:** `max-w-[960px]`; метрики `grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3`; числа `font-mono tabular-nums`[cite: 7].
+**Parameters:** `max-w-6xl`; метрики `grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3`; числа `font-mono tabular-nums`[cite: 7].
 
 #### 1. ViewMode: List (L1 Data row)
 - **Desktop (`md:` и выше):** горизонтальная L1-строка фиксированной высоты `h-16 rounded-[18px] bg-card border border-border-card px-4`, строгая табличная колоночная структура (`Identity w-72` → `Context/Notes flex-1` → `Parameters w-24` → `Primary metric w-24` → `Thumbnail w-10`)[cite: 7].
@@ -215,7 +215,7 @@ Easing `[0.25,1,0.5,1]` или `[0.16,1,0.3,1]`, длительность `0.15�
 
 ### D — Sectioned page
 **Rule:** На `lg` и выше — двухколоночная nav (L1-строки) + контент (следует Типу B)[cite: 7]. На `< lg` каждый раздел открывается как отдельный экран внутри той же страницы: меняется состояние, а не route[cite: 7].
-**Parameters:** desktop nav — `w-[220px]`, активный пункт `bg-blue-500/10 text-blue-500`, иконка `16-18px` + label; desktop-контент — `max-w-[640px]`[cite: 7].
+**Parameters:** контейнер — `w-full max-w-6xl mx-auto`; desktop nav — `w-[220px]`, активный пункт `bg-blue-500/10 text-blue-500`, иконка `16-18px` + label; desktop-контент — `flex-1 min-w-0` (заполняет оставшуюся ширину с `gap-6`)[cite: 7].
 
 **Mobile drill-down header:** верхняя панель открытого подраздела — единый стандарт с мобильными модалками (§5):
 - **Геометрия и стиль (единый frosted glass):** нативная полупрозрачная область матового размытия `h-16 sticky top-0 z-20 -mx-4 px-4 bg-canvas/80 backdrop-blur-xl shrink-0`, **без `border-b`**, с учётом safe-area сверху (`pt-[env(safe-area-inset-top)]`). В покое на 100% бесшовно сливается с фоном холста страницы (`bg-canvas`), не создавая отдельной прямоугольной карточки или контрастной плашки; при скролле карточки и контент подраздела физически заходят под хедер и мягко размываются под кнопками управления и заголовком.

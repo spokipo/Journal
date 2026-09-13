@@ -12,6 +12,7 @@ import { SettingsView } from './settings/SettingsView';
 import { AuthScreen } from './AuthScreen';
 import { AdvisorChat } from './advisor/AdvisorChat';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useNotificationScheduler } from '../lib/notificationScheduler';
 
 const checkInitialAuth = (): boolean => {
   if (!isSupabaseConfigured) return true;
@@ -29,6 +30,9 @@ export function App() {
   const [location] = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(checkInitialAuth);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(isSupabaseConfigured);
+
+  // Initialize background notification scheduler
+  useNotificationScheduler();
 
   // Sync Supabase authentication state
   useEffect(() => {
@@ -102,7 +106,7 @@ export function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.995 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className={showShell ? "max-w-6xl mx-auto min-h-full" : "w-full min-h-full"}
+            className={showShell ? "max-w-6xl mx-auto min-h-full w-full" : "w-full min-h-full"}
           >
             <Switch location={location}>
               <Route path="/" component={Dashboard} />

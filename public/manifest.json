@@ -1,16 +1,26 @@
 {
+  "id": "/",
   "name": "Trading Journal",
   "short_name": "Journal",
+  "description": "Professional Trading Journal & Analytics PWA",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0c0e14",
   "theme_color": "#0c0e14",
+  "categories": ["finance", "productivity", "utilities"],
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
     }
   ]
 }
-

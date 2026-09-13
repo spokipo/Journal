@@ -303,7 +303,7 @@ export function StatsView() {
   };
 
   return (
-    <div className="space-y-6 pb-12 w-full max-w-[1280px] mx-auto">
+    <div className="space-y-6 pb-12 w-full max-w-6xl mx-auto">
       {/* 1. Page Header (§3 Page header) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

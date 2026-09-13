@@ -469,7 +469,7 @@ export function SystemView() {
   };
 
   return (
-    <div className="flex flex-col space-y-5 pb-16 w-full">
+    <div className="flex flex-col space-y-5 pb-16 w-full max-w-6xl mx-auto">
       {/* ERROR BANNER */}
       {errorMessage && (
         <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-[18px] flex items-center justify-between text-xs text-rose-500">

@@ -657,7 +657,7 @@ export function PlaybookView() {
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 pb-16 w-full max-w-[960px] mx-auto">
+    <div className="flex flex-col gap-4 sm:gap-6 pb-16 w-full max-w-6xl mx-auto">
       {/* 1. Page Header (§3 Page header) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>

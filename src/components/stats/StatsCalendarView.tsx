@@ -238,8 +238,19 @@ export function StatsCalendarView({
     return `${sign}$${abs}`;
   };
 
+  const formatCompactMoney = (val: number | null | undefined) => {
+    if (val === null || val === undefined) return '—';
+    const sign = val > 0 ? '+' : val < 0 ? '-' : '';
+    const abs = Math.abs(val);
+    if (abs >= 1000) {
+      const k = abs / 1000;
+      return `${sign}$${k >= 10 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, '')}k`;
+    }
+    return `${sign}$${Math.round(abs)}`;
+  };
+
   return (
-    <div className="bg-card border border-border-card rounded-[26px] p-5 shadow-sm space-y-4">
+    <div className="bg-card border border-border-card rounded-[26px] p-3.5 sm:p-5 shadow-sm space-y-4">
       {/* 1. Header with Title & View Switcher (Calendar vs Matrix) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-card">
         <div>
@@ -255,12 +266,12 @@ export function StatsCalendarView({
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center gap-1 bg-canvas border border-border-card rounded-full p-1 self-start sm:self-auto">
+        <div className="flex items-center gap-1 bg-canvas border border-border-card rounded-full p-1 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setSubView('calendar')}
             className={cn(
-              "relative h-7 px-3 text-xs font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5",
+              "relative h-7 px-3 text-xs font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5",
               subView === 'calendar' ? "text-blue-500 font-semibold" : "text-text-muted hover:text-text-main"
             )}
           >
@@ -281,7 +292,7 @@ export function StatsCalendarView({
             type="button"
             onClick={() => setSubView('matrix')}
             className={cn(
-              "relative h-7 px-3 text-xs font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5",
+              "relative h-7 px-3 text-xs font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5",
               subView === 'matrix' ? "text-blue-500 font-semibold" : "text-text-muted hover:text-text-main"
             )}
           >
@@ -304,44 +315,46 @@ export function StatsCalendarView({
       {subView === 'calendar' && (
         <div className="space-y-4">
           {/* Calendar Month Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-[20px] bg-canvas/60 border border-border-card">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2.5 sm:p-3 rounded-[20px] bg-canvas/60 border border-border-card">
             {/* Month Nav Controls */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handlePrevMonth}
-                aria-label="Previous Month"
-                className="w-8 h-8 rounded-full bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer"
-              >
-                <ChevronLeft size={16} />
-              </button>
+            <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  aria-label="Previous Month"
+                  className="w-8 h-8 rounded-full bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer shrink-0"
+                >
+                  <ChevronLeft size={16} />
+                </button>
 
-              <h4 className="text-sm font-bold text-text-main font-mono px-2 min-w-[140px] text-center">
-                {MONTH_NAMES[currentMonth]} {currentYear}
-              </h4>
+                <h4 className="text-xs sm:text-sm font-bold text-text-main font-mono px-1 sm:px-2 text-center whitespace-nowrap min-w-[110px] sm:min-w-[140px]">
+                  {MONTH_NAMES[currentMonth]} {currentYear}
+                </h4>
 
-              <button
-                type="button"
-                onClick={handleNextMonth}
-                aria-label="Next Month"
-                className="w-8 h-8 rounded-full bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer"
-              >
-                <ChevronRight size={16} />
-              </button>
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  aria-label="Next Month"
+                  className="w-8 h-8 rounded-full bg-card border border-border-card flex items-center justify-center text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer shrink-0"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
 
               <button
                 type="button"
                 onClick={handleToday}
-                className="h-8 px-3 rounded-full bg-card border border-border-card text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer ml-1"
+                className="h-8 px-2.5 sm:px-3 rounded-full bg-card border border-border-card text-[0.6875rem] sm:text-xs font-semibold text-text-muted hover:text-text-main hover:bg-canvas active:scale-95 transition-all cursor-pointer shrink-0"
               >
                 Today
               </button>
             </div>
 
             {/* Monthly Summary Chips */}
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[0.6875rem] sm:text-xs font-mono">
               <span className={cn(
-                "px-2.5 py-1 rounded-full font-bold",
+                "px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full font-bold",
                 currentMonthStats.netR > 0 ? "bg-emerald-500/10 text-emerald-500" :
                 currentMonthStats.netR < 0 ? "bg-rose-500/10 text-rose-500" : "bg-card text-text-muted border border-border-card"
               )}>
@@ -350,15 +363,15 @@ export function StatsCalendarView({
                   : `${currentMonthStats.netR > 0 ? '+' : ''}${currentMonthStats.netR.toFixed(2)} R`}
               </span>
 
-              <span className="px-2.5 py-1 rounded-full bg-card border border-border-card text-text-muted">
+              <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-card border border-border-card text-text-muted">
                 {currentMonthStats.totalTrades} {currentMonthStats.totalTrades === 1 ? 'trade' : 'trades'}
               </span>
 
-              <span className="px-2.5 py-1 rounded-full bg-card border border-border-card text-text-muted">
+              <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-card border border-border-card text-text-muted">
                 {currentMonthStats.winRate}% WR
               </span>
 
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card border border-border-card text-[0.6875rem]">
+              <div className="flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-card border border-border-card text-[0.625rem] sm:text-[0.6875rem]">
                 <span className="text-emerald-500 font-bold">{currentMonthStats.greenDays}G</span>
                 <span>•</span>
                 <span className="text-rose-500 font-bold">{currentMonthStats.redDays}R</span>
@@ -373,14 +386,17 @@ export function StatsCalendarView({
           </div>
 
           {/* Weekday Header */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-[0.6875rem] font-semibold text-text-muted uppercase tracking-wider">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-[0.625rem] sm:text-[0.6875rem] font-semibold text-text-muted uppercase tracking-wider">
             {WEEK_DAYS.map((wd) => (
-              <div key={wd} className="py-1">{wd}</div>
+              <div key={wd} className="py-1 min-w-0">
+                <span className="sm:hidden">{wd[0]}</span>
+                <span className="hidden sm:inline">{wd}</span>
+              </div>
             ))}
           </div>
 
           {/* Month Day Grid */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {calendarGrid.map((cell) => {
               const hasTrades = cell.trades.length > 0;
               const isPos = cell.netR > 0;
@@ -396,10 +412,10 @@ export function StatsCalendarView({
                     }
                   }}
                   className={cn(
-                    "min-h-[64px] sm:min-h-[82px] rounded-[16px] sm:rounded-[18px] p-2 flex flex-col justify-between transition-all border",
-                    !cell.isCurrentMonth && "opacity-25 pointer-events-none",
+                    "min-h-[54px] sm:min-h-[82px] rounded-[12px] sm:rounded-[18px] p-1 sm:p-2 flex flex-col justify-between transition-all border min-w-0 overflow-hidden",
+                    !cell.isCurrentMonth && "opacity-20 pointer-events-none",
                     hasTrades ? "cursor-pointer active:scale-95" : "cursor-default",
-                    isSelected ? "ring-2 ring-blue-500 shadow-md" : "",
+                    isSelected ? "ring-2 ring-blue-500 bg-blue-500/15 shadow-xs" : "",
                     hasTrades
                       ? isPos
                         ? "bg-emerald-500/10 border-emerald-500/25 hover:border-emerald-500/50 text-emerald-500"
@@ -410,38 +426,44 @@ export function StatsCalendarView({
                   )}
                 >
                   {/* Day Header: Number and Count */}
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center justify-between w-full min-w-0 leading-none">
                     <span className={cn(
-                      "text-[0.6875rem] sm:text-xs font-mono font-bold",
+                      "text-[0.6875rem] sm:text-xs font-mono font-bold shrink-0",
                       hasTrades ? "text-text-main" : "text-text-muted"
                     )}>
                       {cell.dayNum}
                     </span>
 
                     {hasTrades && (
-                      <span className="text-[0.625rem] font-mono px-1 py-0.2 rounded-full bg-card/80 border border-border-card text-text-muted">
-                        {cell.trades.length}t
+                      <span className="text-[0.5625rem] sm:text-[0.625rem] font-mono px-1 py-0.2 rounded-full bg-card/80 border border-border-card text-text-muted shrink-0">
+                        <span className="sm:inline hidden">{cell.trades.length}t</span>
+                        <span className="sm:hidden inline">{cell.trades.length}</span>
                       </span>
                     )}
                   </div>
 
                   {/* Day Result Content */}
                   {hasTrades ? (
-                    <div className="mt-1 text-left">
+                    <div className="mt-0.5 sm:mt-1 w-full min-w-0 text-left">
                       <div className={cn(
-                        "text-[0.6875rem] sm:text-xs font-bold font-mono tabular-nums leading-tight",
+                        "text-[0.625rem] sm:text-xs font-bold font-mono tabular-nums leading-tight truncate",
                         isPos ? "text-emerald-500" : isNeg ? "text-rose-500" : "text-amber-500"
                       )}>
-                        {metricMode === 'amount'
-                          ? formatMoney(cell.netAmount)
-                          : `${isPos ? '+' : ''}${cell.netR.toFixed(1)}R`}
+                        {metricMode === 'amount' ? (
+                          <>
+                            <span className="sm:hidden">{formatCompactMoney(cell.netAmount)}</span>
+                            <span className="hidden sm:inline">{formatMoney(cell.netAmount)}</span>
+                          </>
+                        ) : (
+                          `${isPos ? '+' : ''}${Math.abs(cell.netR) >= 10 ? Math.round(cell.netR) : cell.netR.toFixed(1)}R`
+                        )}
                       </div>
                       <div className="text-[0.625rem] font-mono text-text-muted hidden sm:block mt-0.5">
                         {cell.winCount}W / {cell.lossCount}L
                       </div>
                     </div>
                   ) : (
-                    <div className="h-4" />
+                    <div className="h-2.5 sm:h-4" />
                   )}
                 </div>
               );

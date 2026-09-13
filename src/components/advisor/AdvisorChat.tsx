@@ -149,7 +149,7 @@ export function AdvisorChat() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: "Hello! I am your **Head of Risk (CRO) & Quantitative Performance Analyst**.\n\nMy focus is **Edge Optimization**, statistical expectancy, risk and leak control, and macroeconomic context.\n\nAsk a specific question about your trades, setups, mistakes, risk parameters, or macroeconomics.",
+      content: "Hello! Ask me anything about your trades, setups, or risk metrics.",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -410,7 +410,7 @@ export function AdvisorChat() {
       {
         id: 'welcome',
         role: 'assistant',
-        content: 'Chat history cleared. Ready to evaluate your edge, risk metrics, and macro context.',
+        content: 'Chat history cleared. How can I help you?',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ]);
@@ -423,7 +423,7 @@ export function AdvisorChat() {
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open AI Advisor"
-        title="Head of Risk & Quantitative Advisor"
+        title="AI Advisor"
         whileTap={{ scale: 0.95 }}
         className={cn(
           "hidden md:flex fixed bottom-8 right-8 z-40 rounded-full shadow-2xl items-center justify-center transition-all cursor-pointer",
@@ -483,7 +483,7 @@ export function AdvisorChat() {
               layout
               role="dialog"
               aria-modal="true"
-              aria-label="Head of Risk & Quantitative Advisor"
+              aria-label="AI Advisor"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
@@ -508,7 +508,7 @@ export function AdvisorChat() {
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-base font-semibold text-text-main truncate leading-tight">
-                      Head of Risk & Quant
+                      AI Advisor
                     </h2>
                   </div>
                 </div>
@@ -561,7 +561,7 @@ export function AdvisorChat() {
                     style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
                   >
                     <h2 className="text-base font-semibold text-text-main truncate pointer-events-auto">
-                      Head of Risk & Quant
+                      AI Advisor
                     </h2>
                   </div>
 
@@ -611,7 +611,7 @@ export function AdvisorChat() {
                   <div className="flex flex-col items-start">
                     <div className="px-4 py-3 md:px-3.5 md:py-2.5 bg-card border border-border-card rounded-[18px] rounded-tl-[4px] text-sm text-text-muted flex items-center gap-2 shadow-xs">
                       <Loader2 size={16} className="animate-spin text-blue-500" />
-                      <span className="text-xs font-medium">Analyzing edge, risk metrics & macro context...</span>
+                      <span className="text-xs font-medium">Thinking...</span>
                     </div>
                   </div>
                 )}

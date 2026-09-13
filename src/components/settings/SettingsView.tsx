@@ -565,7 +565,7 @@ export function SettingsView() {
   };
 
   return (
-    <div className="flex flex-col space-y-5 pb-12 w-full">
+    <div className="flex flex-col space-y-5 pb-12 w-full max-w-6xl mx-auto">
       {/* ========================================================== */}
       {/* DESKTOP LAYOUT (>= lg): Two-column Nav + Unified L2 Card   */}
       {/* ========================================================== */}

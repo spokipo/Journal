@@ -417,7 +417,7 @@ export function JournalView() {
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 pb-16 w-full max-w-[960px] mx-auto">
+    <div className="flex flex-col gap-4 sm:gap-6 pb-16 w-full max-w-6xl mx-auto">
       {/* 1. Page Header (Band reveal §3.1) */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
